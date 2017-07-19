@@ -9,6 +9,8 @@ from tracker import tracker
 from adjuster import adjuster
 import socket
 from counter import counter
+import sys
+from threading import Thread
 
 class expresswayCamera:
 	"""Main Class. Handles iteration over images."""
@@ -25,6 +27,8 @@ class expresswayCamera:
 			CAP_VIDEOFILE = "C:/testVideoH.mp4"
 		elif name == "RWHIT-PI801":
 			CAP_VIDEOFILE = "testVideoH.mp4"
+		else:
+			sys.exit("Dont know what device this is running on. Exitting.")
 
 		# Initiate our Frame Capture
 		self.frameCapture = cv2.VideoCapture(CAP_VIDEOFILE)
@@ -40,8 +44,20 @@ class expresswayCamera:
 		self.top = tracker("Top",top)
 		self.bot = tracker("Bot",bot)
 
-		self.top_count = counter(top)
-		self.bot_count = counter(top)
+		# Initialize the counters.
+		self.top_count = counter(top, (3, 3, 0.05))
+		self.bot_count = counter(bot, (3, 3, 0.05))
+
+		# Set up the flags for thread status
+		# Counter
+		self.count_runStatus = True
+		self.count_readyStatus = True
+		# Tracker
+		self.track_runStatus = True
+		self.track_readyStatus = True
+
+		self.frame_latest = [top, bot]
+		self.frame_ready = False
 
 	def loop(self):
 		"""Main loop of expresswayCam class"""
@@ -69,6 +85,26 @@ class expresswayCamera:
 				print('\r[FPS] = {0:2.3f}'.format(100/(time.time() - time1)))
 		# Release the frame capture and exit the function
 		self.frameCapture.release()
+
+	def loopHandle(self):
+		"""Alternate version of the loop function.  Passes and prepares information for the handlers."""
+
+
+	def countRoutineHandle(self):
+		"""Threaded routine for counters."""
+		while(self.count_runStatus):
+			if (self.count_readyStatus):
+				frame = self.ready_frame.copy()
+
+
+
+
+	def countRoutineStart(self):
+		"""Start the thread for the counting routine."""
+		Thread(target = self.countRoutineHandle, args = ()).start()
+
+class frameGrabber:
+	"""Grabs frames from the piCamera."""
 
 
 def main():

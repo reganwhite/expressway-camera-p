@@ -60,10 +60,14 @@ class sensor:
 				# set the flag to false
 				self.flag[x] = Flase
 
+		self.update(frame)
+
 	def ticker(self,frame):
 		"""Main function called exteriorly by the handler."""
 		# Perform the comparison
 		self.compare(frame)
+
+		return self.retFlag()
 
 	def retFlag(self):
 		"""Return the current lane flags."""

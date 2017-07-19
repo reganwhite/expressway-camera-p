@@ -27,3 +27,6 @@ class counter:
 
 		for i in range(0, self.right - 1):
 			self.sensor_r.append(sensor(x, 0.05, frame_))
+
+	def run(self,frame):
+		"""Run the sensors.  Takes a frame as input."""
