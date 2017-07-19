@@ -12,6 +12,9 @@ from counter import counter
 import sys
 from threading import Thread
 
+# Counter resolution
+COUNT_RES = 3
+
 class expresswayCamera:
 	"""Main Class. Handles iteration over images."""
 
@@ -45,8 +48,8 @@ class expresswayCamera:
 		self.bot = tracker("Bot",bot)
 
 		# Initialize the counters.
-		self.top_count = counter(top, (3, 3, 0.05))
-		self.bot_count = counter(bot, (3, 3, 0.05))
+		self.top_count = counter(top, (COUNT_RES, COUNT_RES, 0.05))
+		self.bot_count = counter(bot, (COUNT_RES, COUNT_RES, 0.05))
 
 		# Set up the flags for thread status
 		# Counter
@@ -83,18 +86,46 @@ class expresswayCamera:
 
 			if count % 100 == 0 and count > 100:
 				print('\r[FPS] = {0:2.3f}'.format(100/(time.time() - time1)))
+
 		# Release the frame capture and exit the function
 		self.frameCapture.release()
 
 	def loopHandle(self):
 		"""Alternate version of the loop function.  Passes and prepares information for the handlers."""
+		count = 0
+		float = 0
+		while self.frameCapture.isOpened():
+			count = count + 1
+			# get the next frame\
+			if count % 100 == 1:
+				time1 = time.time()
+			self.frameReady = False
+			success, frame = self.frameCapture.read()
+			if success:
+				top, bot = self.adj.adjust(frame)
+				self.frame_latest[0] = top.copy()
+				self.frame_latest[1] = bot.copy()
+				self.frame_ready = True
+			else:
+				break
+			# Wait for key input and exit on Q
+			key = cv2.waitKey(1) & 0xff
+			if key == ord('q'):
+				break
 
+			if count % 100 == 0 and count > 100:
+				print('\r[FPS] = {0:2.3f}'.format(100/(time.time() - time1)))
+
+		# Release the frame capture and exit the function
+		self.count_runStatus = False
+		self.track_runStatus = False
+		self.frameCapture.release()
 
 	def countRoutineHandle(self):
 		"""Threaded routine for counters."""
 		while(self.count_runStatus):
 			if (self.count_readyStatus):
-				frame = self.ready_frame.copy()
+				self.top_count.run(self.frame_ready[0], self.frame_ready[1])
 
 
 
