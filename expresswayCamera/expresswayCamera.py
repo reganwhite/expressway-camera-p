@@ -8,6 +8,7 @@ import math
 from tracker import tracker
 from adjuster import adjuster
 import socket
+from counter import counter
 
 class expresswayCamera:
 	"""Main Class. Handles iteration over images."""
@@ -38,6 +39,9 @@ class expresswayCamera:
 		# Initialize the objects
 		self.top = tracker("Top",top)
 		self.bot = tracker("Bot",bot)
+
+		self.top_count = counter(top)
+		self.bot_count = counter(top)
 
 	def loop(self):
 		"""Main loop of expresswayCam class"""
