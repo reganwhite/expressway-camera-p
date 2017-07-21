@@ -5,8 +5,7 @@ MAX_INT = 255
 
 class sensor:
 	"""Counts cars!"""
-	
-	def __init__(self,dim,lr1,frame):
+	def __init__(self, dim, lr1, frame):
 		"""Initialize the object."""
 		# Set the dimensions of the slice
 		self.h, self.w	= frame.shape
@@ -24,16 +23,11 @@ class sensor:
 		# Set our flags for whether or not a car exists
 		self.flag = [ False, False, False, False ]
 
-
-	def start(self):
-		"""Starts the different tracks of the counter"""
-
-
-	def update(self,frame):
+	def update(self, frame):
 		"""Update the background intensity model."""
 		self.truth = self.truth * (1 - self.lr1) + frame * self.lr1
 
-	def compare(self,frame):
+	def compare(self, frame):
 		"""Compares the input frame to the truth."""
 		# Get the difference between the two frames
 		comp = abs(self.truth - frame)
@@ -62,7 +56,7 @@ class sensor:
 
 		self.update(frame)
 
-	def ticker(self,frame):
+	def run(self, frame):
 		"""Main function called exteriorly by the handler."""
 		# Perform the comparison
 		self.compare(frame)
