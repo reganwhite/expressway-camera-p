@@ -61,6 +61,7 @@ class expresswayCamera:
 
 		self.frame_latest = [top, bot]
 		self.frame_ready = False
+		self.frame_time = time.time()
 
 	def loop(self):
 		"""Main loop of expresswayCam class"""
@@ -74,6 +75,7 @@ class expresswayCamera:
 				time1 = time.time()
 			success, frame = self.frameCapture.read()
 			if success:
+				self.frame_time = time.time()
 				top, bot = self.adj.adjust(frame)
 				self.top.track(top)
 				self.bot.track(bot)

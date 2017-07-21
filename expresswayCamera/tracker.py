@@ -67,7 +67,7 @@ _FILTER_SPEED			= 30						# max concernable filter speed in kph
 class tracker:
 	"""Class used to track vehicles."""
 
-	def __init__(self,loc,frameInit):
+	def __init__(self, loc, frameInit):
 		"""Initialize things."""
 
 		# Initialise the requester
@@ -130,17 +130,28 @@ class tracker:
 
 		self._PPM = float( self._PPM / IM_BIN_SIZE / 3)
 
+		self.readyStatus = True
+
+
+
+	def run(self, frame):
+		"""Run the tracker given a frame input."""
+		if self.readyStatus == False:
+			self.track(frame)
+		else:
+
+
 
 	####### ------- track ------- #######
 	# Takes a frame input and finds information about it.  The Frame is
 	# input from the expresswayCam class having already been processed
 	# (cropped, resized, etc.).
-	def track(self,frame):
+	def track(self, frame):
 		"""Main function of Tracker class."""
 		self.count = self.count + 1 # increment the counter
 		
 		if SV_DEMO:
-			cv2.imshow('Base Frame' + self.loc,frame)
+			cv2.imshow('Base Frame' + self.loc, frame)
 				
 		# Run the FastFeatureDetector
 		keypoints = self.fast.detect(frame, None)
@@ -249,7 +260,7 @@ class tracker:
 	####### ------- descCompare ------- #######
 	# Takes newly found descriptors and compares them to the descriptors
 	# of the previous frame to find matches.
-	def descCompare(self , dsc):
+	def descCompare(self, dsc):
 		"""Brute force checks for matches between two sets of descriptors.
 		Takes an input of a vector of descriptors."""
 		
