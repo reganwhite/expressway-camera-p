@@ -1,5 +1,4 @@
 import time
-
 import cv2
 import numpy as np
 
@@ -12,33 +11,30 @@ class counter:
 		# Set the dimensions of the base frame
 		self.height, self.width = frame.shape
 
-		# Get the sensor learning rate
-		self.lr1 = param[2]
-
-		# Prepare the input/output slices
-		self.left = param[0]
-		self.right = param[1]
+		# Parse input params
+		self.left	= param[0]
+		self.right	= param[1]
+		self.lr1	= param[2]
 
 		# Define where we want the slices to be
 		self.x = 0
 
-		# Initialize the blank lists
+		# Initialize lists to store sensor objects
 		self.sensor_l = []
 		self.sensor_r = []
 
-		# Ready status of the 
+		# Set up flags to store the ready status of different components
 		self.readyStatusL = False
 		self.readyStatusR = False
 		self.runStatus = True
 
-		# Store frames for use by the sensors
+		# Set up storage for input frames
 		self.frameBuffer = frame.copy()
 		self.frameInUse = frame.copy()
 
 		# Populate the lists with instances of "sensor"
 		for i in range(0, self.left - 1):
 			self.sensor_l.append(sensor(x, 0.05, frame_))
-
 		for i in range(0, self.right - 1):
 			self.sensor_r.append(sensor(x, 0.05, frame_))
 
@@ -89,22 +85,16 @@ class sensor:
 	"""Counts cars!"""
 	def __init__(self, dim, lr1, frame):
 		"""Initialize the object."""
-		# Set the dimensions of the slice
-		self.h, self.w	= frame.shape
-		self.x			= dim
-
-		# How many lanes are we looking at?
-		self.LANES	= 4
-
+		# Set up constants the such
+		self.h, self.w	= frame.shape	# Set the dimensions of the slice
+		self.x			= dim	# x location of the slice
+		self.dr		= 10		# Required difference for a car to exist (%)
+		self.lr1	= lr1		# Define the learning rate of the model
+		self.LANES	= 4			# How many lanes are we looking at?
+		
 		# take the truth of the background
 		self.truth	= frame[ 0:self.h, self.x:(self.x + self.w)]
-
-		# Define the learning rate of the model
-		self.lr1	= lr1
-
-		# Define the diff rate of the model
-		self.dr		= 10	# Required difference for a car to exist (%)
-
+		
 		# Set our flags for whether or not a car exists
 		self.flag	= [ False, False, False, False ]
 
@@ -116,16 +106,15 @@ class sensor:
 		"""Compares the input frame to the truth."""
 		# Take the frame and find its average intensity for the four sections
 		# Perform for both the truth and the new frame
-		# Refresh the buffer
-		self.flag = [ False, False, False, False ]
+		self.flag = [ False, False, False, False ] # Reset the buffer
 
 		for x in range(0,self.LANES):
 			# Take the average of the lane section and append it to the buffer
 			a = np.average(frame[x * self.h / 4, (x + 1) * self.h / 4])
 			b = np.average(self.truth[x * self.h / 4, (x + 1) * self.h / 4])
 
-			# Check to see if the two are sufficiently different then a car
-			# exists.  Flag accordingly.
+			# Check to see if the two are sufficiently different.  If they are,
+			# then set the flag as True.
 			if np.abs(((a - b) / b) * 100) >  self.dr:
 				self.flag[x] = True
 

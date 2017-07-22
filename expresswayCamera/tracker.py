@@ -139,8 +139,7 @@ class tracker:
 		if self.readyStatus == False:
 			self.track(frame)
 		else:
-
-
+			time.sleep(0.001)
 
 	####### ------- track ------- #######
 	# Takes a frame input and finds information about it.  The Frame is
