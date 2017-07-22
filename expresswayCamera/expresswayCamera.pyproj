@@ -27,7 +27,6 @@
     <Compile Include="debugger.py" />
     <Compile Include="expresswayCamera.py" />
     <Compile Include="requester.py" />
-    <Compile Include="sensor.py" />
     <Compile Include="tracker.py" />
   </ItemGroup>
   <ItemGroup>
