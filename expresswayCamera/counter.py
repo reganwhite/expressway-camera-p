@@ -102,12 +102,16 @@ class sensor:
 		"""Update the background-truth intensity model."""
 		self.truth = self.truth * (1 - self.lr1) + frame * self.lr1
 
+	####### ------- compare ------- #######
+	# Compares the input frame to a historical model of the road.  If the average
+	# pixel intensity in the input frame is sufficiently different to the historical
+	# models average intensity, we assume that something is present.
 	def compare(self, frame):
 		"""Compares the input frame to the truth."""
 		# Take the frame and find its average intensity for the four sections
-		# Perform for both the truth and the new frame
 		self.flag = [ False, False, False, False ] # Reset the buffer
-
+		
+		# Perform comparison between frame and truth
 		for x in range(0,self.LANES):
 			# Take the average of the lane section and append it to the buffer
 			a = np.average(frame[x * self.h / 4, (x + 1) * self.h / 4])
