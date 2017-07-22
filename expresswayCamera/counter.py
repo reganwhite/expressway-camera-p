@@ -31,7 +31,7 @@ class counter:
 		self.frameBuffer = frame.copy()
 		self.frameInUse = frame.copy()
 
-		# Populate the lists
+		# Populate the lists with instances of "sensor"
 		for i in range(0, self.left - 1):
 			self.sensor_l.append(sensor(x, 0.05, frame_))
 

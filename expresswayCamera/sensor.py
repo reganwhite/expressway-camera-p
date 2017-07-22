@@ -20,6 +20,9 @@ class sensor:
 		# Define the learning rate of the model
 		self.lr1	= lr1
 
+		# Define the diff rate of the model
+		self.dr		= 10	# Required difference for a car to exist (%)
+
 		# Set our flags for whether or not a car exists
 		self.flag = [ False, False, False, False ]
 
@@ -29,37 +32,28 @@ class sensor:
 
 	def compare(self, frame):
 		"""Compares the input frame to the truth."""
-		# Get the difference between the two frames
-		comp = abs(self.truth - frame)
+		# Take the frame and find its average intensity for the four sections
+		# Perform for both the truth and the new frame
+		# Refresh the buffer
+		self.flag = [ False, False, False, False ]
 
-		# Perform the threshold
-		ret, compThresh = cv2.threshold(comp, 10, MAX_INT, cv2.THRESH_BINARY)
-
-		# We have 4 lanes, so separate into them
 		for x in range(0,self.LANES):
-			# Check to see if a car exists in that region
-			# Get the intensities
-			for y in range(x * self.h / 4, (x + 1) * self.h / 4):
-				# Increment the cumulative sum
-				cumSum += compThresh[y]
+			# Take the average of the lane section and append it to the buffer
+			a = np.average(frame[x * self.h / 4, (x + 1) * self.h / 4])
+			b = np.average(self.truth[x * self.h / 4, (x + 1) * self.h / 4])
 
-			# Get the average intensities
-			avgInt = cumSum / self.h / self.LANES
-
-			# If a number of the pixels in the scene throw a flag, there is a car there.
-			if avgInt >= (self.h / self.LANES) * MAX_INT / 4:
-				# set the flag to true
+			# Check to see if the two are sufficiently different then a car
+			# exists.  Flag accordingly.
+			if np.abs(((a - b) / b) * 100) >  self.dr:
 				self.flag[x] = True
-			else:
-				# set the flag to false
-				self.flag[x] = Flase
 
 		self.update(frame)
 
 	def run(self, frame):
 		"""Main function called exteriorly by the handler."""
 		# Perform the comparison
-		self.compare(frame)
+		cropFrame = frame[ 0:self.h, self.x:(self.x + self.w) ]
+		self.compare(cropFrame)
 
 		return self.retFlag()
 

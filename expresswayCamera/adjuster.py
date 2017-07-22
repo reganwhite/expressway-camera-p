@@ -24,7 +24,6 @@ class adjuster:
 
 	def __init__(self):
 		"""Initialiszes the function"""
-
 		# Set the coordinates of the rectangle where the road lies
 		self._X		= 0
 		self._Y		= 0
@@ -34,10 +33,8 @@ class adjuster:
 		# Set the Y coordinate marking the centre of the road, to split the image
 		self.inboundHeight	= 422
 
-
 		# Set the downsample factor
 		self.down		= IM_BIN_SIZE
-
 
 	def adjust(self,frame):
 		"""Performs intiial transformations on the frame to make it more suitable for work.
