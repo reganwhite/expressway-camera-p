@@ -14,6 +14,8 @@ from threading import Thread
 
 # Counter resolution
 COUNT_RES = 3
+SV_TRACK = False
+SV_COUNT = True
 
 class expresswayCamera:
 	"""Main Class. Handles iteration over images."""
@@ -43,24 +45,16 @@ class expresswayCamera:
 		success, frame = self.frameCapture.read()
 		top, bot = self.adj.adjust(frame)
 
-		# Initialize the objects
-		self.top = tracker("Top",top)
-		self.bot = tracker("Bot",bot)
+		if SV_TRACK:
+			# Initialize the objects
+			self.top_track = tracker("Top",top)
+			self.bot_track = tracker("Bot",bot)
 
-		# Initialize the counters.
-		self.top_count = counter(top, (COUNT_RES, COUNT_RES, 0.05))
-		self.bot_count = counter(bot, (COUNT_RES, COUNT_RES, 0.05))
+		if SV_COUNT:
+			# Initialize the counters.
+			self.top_count = counter(top, (COUNT_RES, COUNT_RES, 0.05))
+			self.bot_count = counter(bot, (COUNT_RES, COUNT_RES, 0.05))
 
-		# Set up the flags for thread status
-		# Counter
-		self.count_runStatus = True
-		self.count_readyStatus = True
-		# Tracker
-		self.track_runStatus = True
-		self.track_readyStatus = True
-
-		self.frame_latest = [top, bot]
-		self.frame_ready = False
 		self.frame_time = time.time()
 
 	def loop(self):
@@ -77,8 +71,14 @@ class expresswayCamera:
 			if success:
 				self.frame_time = time.time()
 				top, bot = self.adj.adjust(frame)
-				self.top.track(top)
-				self.bot.track(bot)
+				
+				if SV_TRACK:
+					self.top_track.track(top)
+					self.bot_track.track(bot)
+
+				if SV_COUNT:
+					self.top_count.run(top)
+					self.bot_count.run(bot)
 			else:
 				break
 			# Wait for key input and exit on Q
@@ -91,32 +91,6 @@ class expresswayCamera:
 
 		# Release the frame capture and exit the function
 		self.frameCapture.release()
-
-	def loopHandle(self):
-		"""Alternate version of the loop function.  Passes and prepares information for the handlers."""
-		count = 0
-		float = 0
-		while self.frameCapture.isOpened():
-			count = count + 1
-			# get the next frame\
-			if count % 100 == 1:
-				time1 = time.time()
-			self.frameReady = False
-			success, frame = self.frameCapture.read()
-			if success:
-				top, bot = self.adj.adjust(frame)
-				self.frame_latest[0] = top.copy()
-				self.frame_latest[1] = bot.copy()
-				self.frame_ready = True
-			else:
-				break
-			# Wait for key input and exit on Q
-			key = cv2.waitKey(1) & 0xff
-			if key == ord('q'):
-				break
-
-			if count % 100 == 0 and count > 100:
-				print('\r[FPS] = {0:2.3f}'.format(100/(time.time() - time1)))
 
 		# Release the frame capture and exit the function
 		self.count_runStatus = False
