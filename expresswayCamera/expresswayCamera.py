@@ -11,6 +11,7 @@ import socket
 from counter import counter
 import sys
 from threading import Thread
+#import picamera
 
 # Counter resolution
 COUNT_RES = 3
@@ -112,6 +113,23 @@ class expresswayCamera:
 
 class frameGrabber:
 	"""Grabs frames from the piCamera."""
+	
+	def __init__(self):
+		"""Initialize variables."""
+		# Settings initialised thanks to following stackexchange post by Dave Jones on 14th December, 2016
+		# https://raspberrypi.stackexchange.com/questions/58871/pi-camera-v2-fast-full-sensor-capture-mode-with-downsampling
+		self.cam = picamera()
+		self.cam.sensor_mode = 4		# Full Frame, 2x2 binned mode
+		self.cam.resolution = '120x90'	# Resolution for the Pi's GPU needs to downsample the input matrix to
+		self.cam.framerate = 30			# Target framerate for the Raspberry Pi to aim for.
+
+	def update(self):
+		"""Updater for the settings which determine the Pi Camera's Operation."""
+		# This it the groundwork for the function which will determine the operation of the Rasberry Pi camera in a number of
+		# different environments.  For example, as the lighting conditions in the scene change so will settings such as shutter
+		# speed and white balance, and this function will handle the configuring of those settings to ensure optimum opeartion
+		# of the system.
+
 
 
 def main():
