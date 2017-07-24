@@ -6,7 +6,7 @@ MAX_INT = 255
 
 class counter:
 	"""Handler for sensor class."""
-	def __init__(self,frame,param):
+	def __init__(self,frame,param, loc):
 		"""Initialize the handler."""
 		# Set the dimensions of the base frame
 		self.height, self.width = frame.shape
@@ -32,6 +32,9 @@ class counter:
 		self.frameBuffer = frame.copy()
 		self.frameInUse = frame.copy()
 
+		# Is this the top or bottom traffic?
+		self.loc = " " + loc
+
 		# Populate the lists with instances of "sensor"
 		for i in range(0, self.left - 1):
 			self.sensor_l.append(sensor(x, 0.05, frame_))
@@ -40,18 +43,8 @@ class counter:
 
 	def run(self, frame):
 		"""Run the sensors.  Takes a frame as input."""
-		while self.runStatus:
-			if self.readyStatus:
-				# Tell the object that we've used the buffered frame
-				self.readyStatus = False
-
-				# Run the updater
-				self.update(frame)
-
-			else:
-				# Looks like we dont have anything to analyse yet.
-				# Go to sleep for a moment to make sure we're not wasting clock cycles
-				time.sleep(0.001)
+		# Run the updater
+		self.update(frame)
 
 	def push(self, frame):
 		"""Pushes the latest frame to the object."""
@@ -80,6 +73,9 @@ class counter:
 			statusLeft.append(self.sensor_l[i].run(frame))
 		for i in range(0, self.right - 1):
 			statusRight.append(self.sensor_r[i].run(frame))
+
+		# Analyse output flags to see if things are working correctly.
+
 
 class sensor:
 	"""Counts cars!"""

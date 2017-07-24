@@ -52,8 +52,8 @@ class expresswayCamera:
 
 		if SV_COUNT:
 			# Initialize the counters.
-			self.top_count = counter(top, (COUNT_RES, COUNT_RES, 0.05))
-			self.bot_count = counter(bot, (COUNT_RES, COUNT_RES, 0.05))
+			self.top_count = counter(top, (COUNT_RES, COUNT_RES, 0.05), "Top")
+			self.bot_count = counter(bot, (COUNT_RES, COUNT_RES, 0.05), "Bot")
 
 		self.frame_time = time.time()
 
