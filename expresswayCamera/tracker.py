@@ -132,8 +132,6 @@ class tracker:
 
 		self.readyStatus = True
 
-
-
 	def run(self, frame):
 		"""Run the tracker given a frame input."""
 		if self.readyStatus == False:

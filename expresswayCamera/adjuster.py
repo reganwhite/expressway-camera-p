@@ -36,7 +36,7 @@ class adjuster:
 		# Set the downsample factor
 		self.down		= IM_BIN_SIZE
 
-	def adjust(self,frame):
+	def adjust(self, frame, crop = True, resize = True, cvt = True):
 		"""Performs intiial transformations on the frame to make it more suitable for work.
 		Takes an input of a frame."""
 		# Do some transforms.  Do in the following order because this is the fastest way
@@ -44,9 +44,12 @@ class adjuster:
 		#	2. Resize
 		#	3. RGB -> Greyscale
 		#	4. Blur
-		frame = frame[_Y1:_Y2, _X1:_X2]
-		frame = cv2.resize(frame,(_W, _H),0,0,cv2.INTER_LINEAR)			# Resize the frame to make it more manageable - INTER_LINEAR because it's fast
-		frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)					# Convert RGB to Grayscale
+		if crop:
+			frame = frame[_Y1:_Y2, _X1:_X2]
+		if resize:
+			frame = cv2.resize(frame,(_W, _H),0,0,cv2.INTER_LINEAR)	# Resize the frame to make it more manageable - INTER_LINEAR because it's fast
+		if cvt:
+			frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)			# Convert RGB to Grayscale
 		#frame = cv2.GaussianBlur(frame, (GAUSS_KSIZE, GAUSS_KSIZE), 0)	# Perform Gaussian Blur to make things run a bit easier
 
 		# Split the road into top/bottom
