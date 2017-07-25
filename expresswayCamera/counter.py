@@ -83,7 +83,7 @@ class sensor:
 		"""Initialize the object."""
 		# Set up constants the such
 		self.h, self.w	= frame.shape	# Set the dimensions of the slice
-		self.x			= dim	# x location of the slice
+		self.x		= dim		# x location of the slice
 		self.dr		= 10		# Required difference for a car to exist (%)
 		self.lr1	= lr1		# Define the learning rate of the model
 		self.LANES	= 4			# How many lanes are we looking at?

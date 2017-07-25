@@ -30,6 +30,11 @@ class requester:
 		self.rawDataGap = []
 		self.stringDataGap = ''
 
+		self.ts_write_key	= "1M1BZ89RA33RT2NF"
+		self.ts_read_key	= "IKS43FIAIA50VY9O"
+		self.ts_update_url	= "https://api.thingspeak.com/update"
+
+
 	def dataAppend(self, avgTotalSpeed, avgLaneSpeed, type):
 		"""Appends newest data to the end of the buffer."""
 		# Take the latest speed input and appends to the raw buffer
@@ -96,3 +101,7 @@ class requester:
 		Thread(target = self.poster, args = ()).start()
 
 		return self
+	
+	def ts_poster(self):
+		"""Posts information to the thingspeak channel."""
+		r = requests.get(self.ts_update_url, params = {'api_key':self.speedStrComb, 'field1':self.speedStrUNIX, 'field1':self.speedStrLane})

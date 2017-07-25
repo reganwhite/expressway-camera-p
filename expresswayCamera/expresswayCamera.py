@@ -19,6 +19,7 @@ COUNT_RES = 3
 SV_COUNT_UPDATE = 50
 SV_TRACK = False
 SV_COUNT = True
+SV_LIVE	= False
 
 class expresswayCamera:
 	"""Main Class. Handles iteration over images."""
@@ -28,25 +29,30 @@ class expresswayCamera:
 		# Get the system name to find the videofile
 		name = socket.gethostname()
 
-		# Figure out the location of the video file
-		if name == "Regan-PC":
-			CAP_VIDEOFILE = "E:/testVideoG.mp4"
-		elif name == "Regan-Surface":
-			CAP_VIDEOFILE = "C:/testVideoH.mp4"
-		elif name == "RWHIT-PI801":
-			CAP_VIDEOFILE = "testVideoH.mp4"
-		else:
-			sys.exit("Dont know what device this is running on. Exitting.")
-
-		# Initiate our Frame Capture
-		self.frameCapture = cv2.VideoCapture(CAP_VIDEOFILE)
-
 		# Initalize adjuster
 		self.adj = adjuster()
 
-		# Get frames for initialising background models
-		success, frame = self.frameCapture.read()
-		top, bot = self.adj.adjust(frame)
+		if SV_LIVE:
+			# Figure out the location of the video file
+			if name == "Regan-PC":
+				CAP_VIDEOFILE = "E:/testVideoG.mp4"
+			elif name == "Regan-Surface":
+				CAP_VIDEOFILE = "C:/testVideoH.mp4"
+			elif name == "RWHIT-PI801":
+				CAP_VIDEOFILE = "testVideoH.mp4"
+			else:
+				sys.exit("Dont know what device this is running on. Exitting.")
+
+			# Initiate our Frame Capture
+			self.frameCapture = cv2.VideoCapture(CAP_VIDEOFILE)
+
+			# Get frames for initialising background models
+			success, frame = self.frameCapture.read()
+			top, bot = self.adj.adjust(frame)
+		else:
+			self.grabber = frameGrabber()
+			self.grabber.start()
+			top, bot = self.adj.adjust(frame, resize = False)
 
 		if SV_TRACK:
 			# Initialize the objects
@@ -67,7 +73,7 @@ class expresswayCamera:
 		float = 0
 		while self.frameCapture.isOpened():
 			count = count + 1
-			# get the next frame\
+			# get the next frame
 			if count % 100 == 1:
 				time1 = time.time()
 			success, frame = self.frameCapture.read()
@@ -83,7 +89,10 @@ class expresswayCamera:
 					self.top_count.run(top)
 					self.bot_count.run(bot)
 			else:
-				break
+				print("Looks like we've run out of frames to read.")
+				print("This is either because of an error, or because we've finished reading the file.")
+				quit()
+
 			# Wait for key input and exit on Q
 			key = cv2.waitKey(1) & 0xff
 			if key == ord('q'):
@@ -106,9 +115,6 @@ class expresswayCamera:
 			if (self.count_readyStatus):
 				self.top_count.run(self.frame_ready[0], self.frame_ready[1])
 
-
-
-
 	def countRoutineStart(self):
 		"""Start the thread for the counting routine."""
 		Thread(target = self.countRoutineHandle, args = ()).start()
@@ -116,9 +122,10 @@ class expresswayCamera:
 class frameGrabber:
 	"""Grabs frames from the piCamera."""
 	
-	def __init__(self):
+	def __init__(self, sensor_mode = 6, resolution = '128x72', framerate = 30):
 		"""Initialize variables."""
-		# Settings initialised thanks to following stackexchange post by Dave Jones on 14th December, 2016
+		# Settings initialised thanks to StackExchange post by Dave Jones on 14th December, 2016
+		# Accessed 25/07/17
 		# https://raspberrypi.stackexchange.com/questions/58871/pi-camera-v2-fast-full-sensor-capture-mode-with-downsampling
 
 		# PiCamera object
@@ -136,11 +143,11 @@ class frameGrabber:
 		#	6		1280x720		16:9	40-90fps	x	 			Partial		2x2
 		#	7		640x480			4:3		40-90fps	x	 			Partial		2x2
 		# -----------------------------------------------------------------------------------
-		self.cam.sensor_mode = 6
+		self.cam.sensor_mode = sensor_mode
 
 		# Other Settings
-		self.cam.resolution = '128x72'	# Resolution for the Pi's GPU needs to downsample the input matrix to
-		self.cam.framerate = 30			# Target framerate for the Raspberry Pi to aim for.
+		self.cam.resolution = resolution	# Resolution for the Pi's GPU needs to downsample frame to
+		self.cam.framerate = framerate			# Target framerate for the Raspberry Pi to aim for.
 
 		# Make our blank frame for storage
 		self.frame_latest	= np.empty((72, 128), dtype = np.uint8)
@@ -158,6 +165,11 @@ class frameGrabber:
 		# of the system.
 		foo = 1
 
+	def start(self):
+		"""Start the thread for the counting routine."""
+		Thread(target = self.run, args = ()).start()
+		return 1
+
 	def run(self):
 		"""Main loop of the frameGrabber class."""
 		# Go to sleep to give the camera some time to warm up
@@ -172,7 +184,12 @@ class frameGrabber:
 				self.update()
 
 			# Start the frame pull
-			self.cam.capture(new,'bgr')		# Pull the frame from the camera
+			try:
+				self.cam.capture(new,'bgr')		# Pull the frame from the camera
+			except:
+				print("Looks like something went horribly wrong with the Frame Read.")
+				print("Complain to Regan and get him to fix this.")
+
 			self.frame_time = time.time()	# Record the frame time	
 			self.frame_latest = new.copy()	# copy it to the self.frame_latest variable
 		
@@ -194,14 +211,10 @@ class frameGrabber:
 		return self.frame_latest
 		
 
-def main():
-	"""Main loop."""
+if __name__ == '__main__':
 	# Initialize the tracker object
 	main = expresswayCam()
 	main.loop()
 
 	# Make sure everything is cleaned up
 	cv2.destroyAllWindows()
-
-if __name__ == '__main__':
-	main()
