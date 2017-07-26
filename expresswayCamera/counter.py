@@ -40,10 +40,12 @@ class counter:
 		self.loc = " " + loc
 
 		# Populate the lists with instances of "sensor"
-		for i in range(0, self.left - 1):
-			self.sensor_l.append(sensor(x + (i * self.width / 20), 0.05, frame))
-		for i in range(0, self.right - 1):
-			self.sensor_r.append(sensor(x - (i * self.width / 20), 0.05, frame))
+		for i in range(0, self.left):
+			print "Left."
+			self.sensor_l.append(sensor(self.x + (float(i) * float(self.width) / 10), 0.02, frame))
+		for i in range(0, self.right):
+			print "Right."
+			self.sensor_r.append(sensor(self.width - (self.x + (float(i) * float(self.width) / 10)), 0.02, frame))
 
 	def run(self, frame):
 		"""Run the sensors. Takes a frame as input."""
@@ -73,9 +75,9 @@ class counter:
 		statusRight = []
 
 		# Take the input frame and start comparisons
-		for i in range(0, self.left - 1):
+		for i in range(0, self.left):
 			statusLeft.append(self.sensor_l[i].run(frame))
-		for i in range(0, self.right - 1):
+		for i in range(0, self.right):
 			statusRight.append(self.sensor_r[i].run(frame))
 
 		keypoints = []
@@ -85,6 +87,11 @@ class counter:
 				if self.sensor_l[i].flag[j]:
 					keypoints.append(cv2.KeyPoint(self.sensor_l[i].x, (self.height / 8) + j * self.height / 4, 5))
 
+		blankFrame = frame.copy()	# Make a copy of the frame so that we don't break it
+		# Draw keypoints and number of features that we're tracking
+		blankOut = cv2.drawKeypoints(blankFrame, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+		cv2.imshow('Ping' + self.loc,blankOut)
+
 
 class sensor:
 	"""Counts cars!"""
@@ -92,13 +99,13 @@ class sensor:
 		"""Initialize the object."""
 		# Set up constants the such
 		self.h, self.w	= frame.shape	# Set the dimensions of the slice
-		self.x		= dim		# x location of the slice
-		self.dr		= 10		# Required difference for a car to exist (%)
+		self.x		= int(dim)		# x location of the slice
+		self.dr		= 15		# Required difference for a car to exist (%)
 		self.lr1	= lr1		# Define the learning rate of the model
 		self.LANES	= 4			# How many lanes are we looking at?
 		
 		# take the truth of the background
-		self.truth	= frame[ 0:self.h, self.x:(self.x + self.w)]
+		self.truth	= frame[ 0:self.h, self.x:self.x + 1]
 		
 		# Set our flags for whether or not a car exists
 		self.flag	= [ False, False, False, False ]
@@ -117,21 +124,22 @@ class sensor:
 		self.flag = [ False, False, False, False ] # Reset the buffer
 		
 		# Perform comparison between frame and truth
-		for x in range(0,self.LANES):
+		for i in range(0,self.LANES):
 			# Take the average of the lane section and append it to the buffer
-			a = np.average(frame[x * self.h / 4, (x + 1) * self.h / 4])
-			b = np.average(self.truth[x * self.h / 4, (x + 1) * self.h / 4])
+			a = np.average(frame[i * self.h / 4 + self.h / 8:(i + 1) * self.h / 4 - self.h / 8])
+			b = np.average(self.truth[i * self.h / 4 + self.h / 8:(i + 1) * self.h / 4 - self.h / 8])
 
 			# Check to see if the two are sufficiently different.  If they are,
 			# then set the flag as True.
-			if np.abs(((a - b) / b) * 100) >  self.dr:
-				self.flag[x] = True
+			diff = np.abs(((a - b) / b) * 100)
+			if diff > self.dr:
+				self.flag[i] = True
 
 		self.update(frame)
 
 	def run(self, frame):
 		"""Main function called exteriorly by the handler."""
-		cropFrame = frame[ 0:self.h, self.x:(self.x + self.w) ] # Crop the frame
+		cropFrame = frame[ 0:self.h, self.x:self.x + 1] # Crop the frame
 		self.compare(cropFrame) # Perform the comparison
 
 		# Return the flags thrown by the comparison

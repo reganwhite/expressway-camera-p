@@ -2,16 +2,12 @@
 import requests
 from threading import Thread
 import time
-from ewc import ewc
 
 class requester:
 	"""HTTP Request Class: This class is used to transfer data from the system to the web server via HTTP requests."""
 
 	def __init__(self, urlP1, target):
 		"""Initialize the class information."""
-		# Import settings class
-		self.cfg = ewc()
-
 		# URL of Data Handler for Average Speed
 		self.urlPost1 = urlP1
 

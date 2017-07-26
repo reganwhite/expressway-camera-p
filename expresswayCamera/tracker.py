@@ -7,7 +7,6 @@ from requester import requester
 import string
 import random
 import matplotlib.pyplot as plt
-from ewc import ewc
 
 
 # Define some flags
@@ -27,7 +26,7 @@ SV_START_DELAY			= 100		# number of frames the sytem will process before commenc
 SV_SEND_DELAY			= 1000		# number of frames the system will process before sending to server
 
 # FAST (Fast Feature Detector)
-FFD_THRESHOLD			= 84
+FFD_THRESHOLD			= 66
 				# Can incremement this with fast.setThreshold
 
 # Descriptor Extractor
@@ -70,9 +69,6 @@ class tracker:
 
 	def __init__(self, loc, frameInit):
 		"""Initialize things."""
-		# Import settings
-		self.cfg = ewc()
-
 		# Initialise the requester
 		if loc == "Top":
 			_PPM_UNSCALED = 205
@@ -168,6 +164,10 @@ class tracker:
 		#	This gives us enough time to build up a nice background model for the keypoint
 		#	processor so that it isnt trying to brute force check 500 features.
 		if self.count > SV_START_DELAY:
+			blankFrame = frame.copy()	# Make a copy of the frame so that we don't break it
+			# Draw keypoints and number of features that we're tracking
+			blankOut = cv2.drawKeypoints(blankFrame, keypointsPreFilter, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+			cv2.imshow('All Detected Features' + self.loc,blankOut)
 			# Match Keypoints
 			matchedPoints = self.descCompare(descriptors)
 
@@ -219,7 +219,7 @@ class tracker:
 		newKeypoints = []
 
 		# Quickly update the entire frame based on the learning rate
-		self.baseFrame = (self.baseFrame % 10) * (1 - _LR1 / 3)
+		self.baseFrame = (self.baseFrame) * (1 - _LR1 / 3)
 
 		# the keypoint check
 		for i in range(0,len(keypoints)):
@@ -231,7 +231,7 @@ class tracker:
 			pointVal = self.baseFrame[pointX,pointY]
 
 			# If there is no evidence of an existing point
-			if (1 - pointVal) > 0.5:
+			if pointVal <  0.5:
 				# Append this keypoint to the list of good points
 				newKeypoints.append(keypoints[i])
 		
@@ -325,12 +325,6 @@ class tracker:
 			# Update the self.currentDistances list
 			self.currentDistances = []
 			self.currentDistances = filteredDistances
-
-		if self.count > 1000:
-			plt.hist(self.currentDistances, bins=60)  # arguments are passed to np.histogram
-			plt.axvline(np.median(np.array(self.currentDistances)), color='b', linestyle='dashed', linewidth=2)
-			plt.title("Histogram with 'auto' bins")
-			plt.show()
 
 		# If we are running from live video
 		if SV_RUN_LIVE:

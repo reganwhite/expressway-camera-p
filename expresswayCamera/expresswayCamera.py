@@ -17,7 +17,7 @@ from threading import Thread
 #import picamera.array
 
 # Counter resolution
-COUNT_RES = 3
+COUNT_RES = 2
 SV_COUNT_UPDATE = 50
 SV_TRACK = False
 SV_COUNT = True
