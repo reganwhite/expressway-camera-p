@@ -7,21 +7,18 @@ MAX_INT = 255
 
 class counter:
 	"""Handler for sensor class."""
-	def __init__(self,frame,param, loc):
+	def __init__(self, frame, loc, left = 2, right = 2, lr = 0.02):
 		"""Initialize the handler."""
-		# Import settings
-		self.cfg = ewc()
-
 		# Set the dimensions of the base frame
 		self.height, self.width = frame.shape
 
 		# Parse input params
-		self.left	= param[0]
-		self.right	= param[1]
-		self.lr1	= param[2]
+		self.left	= left
+		self.right	= right
+		self.lr1	= lr
 
 		# Define where we want the slices to be
-		self.x = 0
+		self.x = 2 
 
 		# Initialize lists to store sensor objects
 		self.sensor_l = []
@@ -41,11 +38,9 @@ class counter:
 
 		# Populate the lists with instances of "sensor"
 		for i in range(0, self.left):
-			print "Left."
-			self.sensor_l.append(sensor(self.x + (float(i) * float(self.width) / 10), 0.02, frame))
+			self.sensor_l.append(sensor(self.x + (float(i) * float(self.width) / 10), self.lr1, frame))
 		for i in range(0, self.right):
-			print "Right."
-			self.sensor_r.append(sensor(self.width - (self.x + (float(i) * float(self.width) / 10)), 0.02, frame))
+			self.sensor_r.append(sensor(self.width - (self.x + (float(i) * float(self.width) / 10)), self.lr1, frame))
 
 	def run(self, frame):
 		"""Run the sensors. Takes a frame as input."""
@@ -77,15 +72,21 @@ class counter:
 		# Take the input frame and start comparisons
 		for i in range(0, self.left):
 			statusLeft.append(self.sensor_l[i].run(frame))
+
 		for i in range(0, self.right):
 			statusRight.append(self.sensor_r[i].run(frame))
 
 		keypoints = []
 		# Analyse output flags to see if things are working correctly.
-		for i in range(0, self.left - 1):
+		for i in range(0, self.left):
 			for j in range(0, 3):
 				if self.sensor_l[i].flag[j]:
 					keypoints.append(cv2.KeyPoint(self.sensor_l[i].x, (self.height / 8) + j * self.height / 4, 5))
+
+		for i in range(0, self.right):
+			for j in range(0, 3):
+				if self.sensor_r[i].flag[j]:
+					keypoints.append(cv2.KeyPoint(self.sensor_r[i].x, (self.height / 8) + j * self.height / 4, 5))
 
 		blankFrame = frame.copy()	# Make a copy of the frame so that we don't break it
 		# Draw keypoints and number of features that we're tracking
@@ -100,7 +101,7 @@ class sensor:
 		# Set up constants the such
 		self.h, self.w	= frame.shape	# Set the dimensions of the slice
 		self.x		= int(dim)		# x location of the slice
-		self.dr		= 15		# Required difference for a car to exist (%)
+		self.dr		= 30		# Required difference for a car to exist (%)
 		self.lr1	= lr1		# Define the learning rate of the model
 		self.LANES	= 4			# How many lanes are we looking at?
 		
