@@ -36,7 +36,7 @@ class expresswayCamera:
 		# Initalize adjuster
 		self.adj = adjuster()
 
-		if self.cfg.SV_LIVE == False:
+		if SV_LIVE == False:
 			# Figure out the location of the video file
 			if name == "Regan-PC":
 				CAP_VIDEOFILE = "E:/testVideoG.mp4"
@@ -58,15 +58,15 @@ class expresswayCamera:
 			self.grabber.start()
 			top, bot = self.adj.adjust(frame, resize = False)
 
-		if self.cfg.SV_TRACK:
+		if SV_TRACK:
 			# Initialize the objects
 			self.top_track = tracker("Top",top)
 			self.bot_track = tracker("Bot",bot)
 
-		if self.cfg.SV_COUNT:
+		if SV_COUNT:
 			# Initialize the counters.
-			self.top_count = counter(top, (self.cfg.COUNT_RES, self.cfg.COUNT_RES, 0.05), "Top")
-			self.bot_count = counter(bot, (self.cfg.COUNT_RES, self.cfg.COUNT_RES, 0.05), "Bot")
+			self.top_count = counter(top, (COUNT_RES, COUNT_RES, 0.05), "Top")
+			self.bot_count = counter(bot, (COUNT_RES, COUNT_RES, 0.05), "Bot")
 
 		self.frame_time = time.time()
 
@@ -85,11 +85,11 @@ class expresswayCamera:
 				self.frame_time = time.time()
 				top, bot = self.adj.adjust(frame)
 				
-				if self.cfg.SV_TRACK:
+				if SV_TRACK:
 					self.top_track.track(top)
 					self.bot_track.track(bot)
 
-				if self.cfg.SV_COUNT:
+				if SV_COUNT:
 					self.top_count.run(top)
 					self.bot_count.run(bot)
 			else:
