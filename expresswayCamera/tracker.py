@@ -7,6 +7,7 @@ from requester import requester
 import string
 import random
 import matplotlib.pyplot as plt
+from ewc import ewc
 
 
 # Define some flags
@@ -69,19 +70,21 @@ class tracker:
 
 	def __init__(self, loc, frameInit):
 		"""Initialize things."""
+		# Import settings
+		self.cfg = ewc()
 
 		# Initialise the requester
 		if loc == "Top":
-			_PPM_UNSCALED = 205
+			self.cfg._PPM_UNSCALED = 205
 		else:
-			_PPM_UNSCALED = 170
+			self.cfg._PPM_UNSCALED = 170
 			
 		self.requester = requester('http://regandwhite.com/traffic/data/entry.php', loc)
-		_PPM = float( _PPM_UNSCALED / IM_BIN_SIZE / 3)
+		self.cfg._PPM = float( self.cfg._PPM_UNSCALED / self.cfg.IM_BIN_SIZE / 3)
 		self.loc = " " + loc
 
 		# Make the fast corner detector
-		self.fast = cv2.FastFeatureDetector_create(FFD_THRESHOLD)
+		self.fast = cv2.FastFeatureDetector_create(self.cfg.FFD_THRESHOLD)
 
 		# Buffer of different kernals for transforms
 		self.kernel1 = np.ones((2,2),np.uint8)
@@ -95,8 +98,8 @@ class tracker:
 		self.baseFrame[:] = 0
 		
 		# Descriptor Extractors
-		self.descExtractor1 = cv2.ORB_create(edgeThreshold = ORB_EDGETHRESH, patchSize = ORB_EDGETHRESH,
-											WTA_K = ORB_WTA_K, scoreType = ORB_SCORETYPE)
+		self.descExtractor1 = cv2.ORB_create(edgeThreshold = self.cfg.ORB_EDGETHRESH, patchSize = self.cfg.ORB_EDGETHRESH,
+											WTA_K = self.cfg.ORB_WTA_K, scoreType = self.cfg.ORB_SCORETYPE)
 
 		# Point Matcher
 		self.descBruteForce = cv2.BFMatcher_create(cv2.NORM_HAMMING, crossCheck = False)
@@ -124,11 +127,11 @@ class tracker:
 		self.currentDistances = []
 
 		if loc == "Top":
-			self._PPM = float(178)
+			self.cfg._PPM = float(178)
 		else:
-			self._PPM = float(205)
+			self.cfg._PPM = float(205)
 
-		self._PPM = float( self._PPM / IM_BIN_SIZE / 3)
+		self.cfg._PPM = float( self.cfg._PPM / self.cfg.IM_BIN_SIZE / 3)
 
 		self.readyStatus = True
 
@@ -147,13 +150,13 @@ class tracker:
 		"""Main function of Tracker class."""
 		self.count = self.count + 1 # increment the counter
 		
-		if SV_DEMO:
+		if self.cfg.SV_DEMO:
 			cv2.imshow('Base Frame' + self.loc, frame)
 				
 		# Run the FastFeatureDetector
 		keypoints = self.fast.detect(frame, None)
 		keypointsPreFilter = keypoints
-		if SV_FILTER_KEYPOINTS:
+		if self.cfg.SV_FILTER_KEYPOINTS:
 			# Filter out all the points we dont want
 			keypoints = self.keypointFilter(keypoints)
 					
@@ -163,14 +166,14 @@ class tracker:
 		# If the program has been running for long enough, start matching keypoints.
 		#	This gives us enough time to build up a nice background model for the keypoint
 		#	processor so that it isnt trying to brute force check 500 features.
-		if self.count > SV_START_DELAY:
+		if self.count > self.cfg.SV_START_DELAY:
 			# Match Keypoints
 			matchedPoints = self.descCompare(descriptors)
 
 			# Find the distances between the keypoints found in the bruteforce check
 			goodMatches = self.matchProcessor(matchedPoints, keypointsFilt)
 
-			if SV_DEMO:		# Process the list of keypoints
+			if self.cfg.SV_DEMO:		# Process the list of keypoints
 				blankFrame = frame.copy()	# Make a copy of the frame so that we don't break it
 
 				# Draw keypoints and number of features that we're tracking
@@ -187,7 +190,7 @@ class tracker:
 
 				# Draw the current average speed onto the frame
 				out_img = cv2.putText(out_img,"Speed: {0:06.2f} kph".format(self.averageSpeed),(30,30), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
-				out_img = cv2.putText(out_img,"PPM: {0:06.2f}".format(self._PPM),(30,60), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
+				out_img = cv2.putText(out_img,"PPM: {0:06.2f}".format(self.cfg._PPM),(30,60), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
 				cv2.imshow('Matches and Speed Output' + self.loc,out_img)
 
 				# Draw the corner features
@@ -313,7 +316,7 @@ class tracker:
 				# Iterate over all the current elements of the filtereDistances list.
 				# If the current value matches any of them, dont include it.
 				for j in range(0, len(filteredDistances)):
-					if math.fabs(self.currentDistances[i] - filteredDistances[j]) < (self.currentDistances[i] * _PixDiff):
+					if math.fabs(self.currentDistances[i] - filteredDistances[j]) < (self.currentDistances[i] * self.cfg._PixDiff):
 						flag += 1
 				if flag is 0:
 					filteredDistances.append(self.currentDistances[i])
@@ -337,7 +340,7 @@ class tracker:
 
 			# Get the current frames parameters
 			self.currentFrame = (sum(self.currentDistances) / float(len(self.currentDistances))) * (1 / (self.timeFinish - self.timeStart))
-			self.currentSpeed = (self.currentFrame / self._PPM) * _MPS_to_KPH
+			self.currentSpeed = (self.currentFrame / self.cfg._PPM) * self.cfg._MPS_to_KPH
 			
 			# If this is the first time running, set initial average parameters
 			if self.firstCount:
@@ -345,8 +348,8 @@ class tracker:
 				self.firstCount = False
 
 			# Update the floating average values
-			self.averageFrame = self.averageFrame * (1 - _LR2) + self.currentFrame * _LR2
-			self.averageSpeed = self.averageSpeed * (1 - _LR2) + self.currentSpeed * _LR2
+			self.averageFrame = self.averageFrame * (1 - self.cfg._LR2) + self.currentFrame * self.cfg._LR2
+			self.averageSpeed = self.averageSpeed * (1 - self.cfg._LR2) + self.currentSpeed * self.cfg._LR2
 						
 		# If we are running from a video file
 		else:
@@ -354,7 +357,7 @@ class tracker:
 			if len(self.currentDistances) is not 0:
 				# There are cars in the frame, do analysis
 				self.currentFrame = (float(sum(self.currentDistances)) / float(len(self.currentDistances)))
-				self.currentSpeed = (self.currentFrame / float(self._PPM)) * float(_MPS_to_KPH) / float(1 / _FPS)
+				self.currentSpeed = (self.currentFrame / float(self.cfg._PPM)) * float(self.cfg._MPS_to_KPH) / float(1 / self.cfg._FPS)
 			else: 
 				# There are no cars in the frame, carry the averag speed from previous
 				self.currentFrame = self.averageFrame
@@ -366,11 +369,11 @@ class tracker:
 				self.firstCount = False
 
 			# Update the floating average values
-			self.averageFrame = self.averageFrame * (1 - _LR2) + self.currentFrame * _LR2
-			self.averageSpeed = self.averageSpeed * (1 - _LR2) + self.currentSpeed * _LR2
+			self.averageFrame = self.averageFrame * (1 - self.cfg._LR2) + self.currentFrame * self.cfg._LR2
+			self.averageSpeed = self.averageSpeed * (1 - self.cfg._LR2) + self.currentSpeed * self.cfg._LR2
 
 			# If flagged, send data to server
-			if SV_SEND_DATA and self.count > SV_SEND_DELAY:
+			if self.cfg.SV_SEND_DATA and self.count > self.cfg.SV_SEND_DELAY:
 				self.averageLaneSpeed = [random.randint(1,60) for x in self.averageLaneSpeed]
 				self.requester.dataAppend(self.averageSpeed, self.averageLaneSpeed,'speed')
 
@@ -394,6 +397,6 @@ class tracker:
 		"""Updates learning rates and other variables at the completion of each frame."""
 		# Update the learning rate of the keypoint filter-er
 		currSpeedFilt = self.averageSpeed
-		if currSpeedFilt > _FILTER_SPEED:
-			currSpeedFilt = _FILTER_SPEED
-		_LR1 = _LR1_BASE * (_FILTER_SPEED / currSpeedFilt)
+		if currSpeedFilt > self.cfg._FILTER_SPEED:
+			currSpeedFilt = self.cfg._FILTER_SPEED
+		_LR1 = self.cfg._LR1_BASE * (self.cfg._FILTER_SPEED / currSpeedFilt)

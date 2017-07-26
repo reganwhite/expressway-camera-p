@@ -1,6 +1,7 @@
 import time
 import cv2
 import numpy as np
+from ewc import ewc
 
 MAX_INT = 255
 
@@ -8,6 +9,9 @@ class counter:
 	"""Handler for sensor class."""
 	def __init__(self,frame,param, loc):
 		"""Initialize the handler."""
+		# Import settings
+		self.cfg = ewc()
+
 		# Set the dimensions of the base frame
 		self.height, self.width = frame.shape
 
@@ -37,12 +41,12 @@ class counter:
 
 		# Populate the lists with instances of "sensor"
 		for i in range(0, self.left - 1):
-			self.sensor_l.append(sensor(x, 0.05, frame_))
+			self.sensor_l.append(sensor(x + (i * self.width / 20), 0.05, frame))
 		for i in range(0, self.right - 1):
-			self.sensor_r.append(sensor(x, 0.05, frame_))
+			self.sensor_r.append(sensor(x - (i * self.width / 20), 0.05, frame))
 
 	def run(self, frame):
-		"""Run the sensors.  Takes a frame as input."""
+		"""Run the sensors. Takes a frame as input."""
 		# Run the updater
 		self.update(frame)
 
@@ -74,7 +78,12 @@ class counter:
 		for i in range(0, self.right - 1):
 			statusRight.append(self.sensor_r[i].run(frame))
 
+		keypoints = []
 		# Analyse output flags to see if things are working correctly.
+		for i in range(0, self.left - 1):
+			for j in range(0, 3):
+				if self.sensor_l[i].flag[j]:
+					keypoints.append(cv2.KeyPoint(self.sensor_l[i].x, (self.height / 8) + j * self.height / 4, 5))
 
 
 class sensor:
