@@ -107,7 +107,6 @@ class ewc:
 		
 		cfg.MAX_INT					= 255
 
-
 class expresswayCamera:
 	"""Main Class. Handles iteration over images."""
 
