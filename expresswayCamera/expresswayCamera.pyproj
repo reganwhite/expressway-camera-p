@@ -22,12 +22,14 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="adjuster.py" />
     <Compile Include="counter.py" />
-    <Compile Include="debugger.py" />
+    <Compile Include="ewc.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="expresswayCamera.py" />
-    <Compile Include="requester.py" />
-    <Compile Include="sensor.py" />
+    <Compile Include="ewctools.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="tracker.py" />
   </ItemGroup>
   <ItemGroup>

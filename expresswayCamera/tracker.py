@@ -7,6 +7,7 @@ from requester import requester
 import string
 import random
 import matplotlib.pyplot as plt
+from ewctools import timer
 
 
 # Define some flags
@@ -26,7 +27,7 @@ SV_START_DELAY			= 100		# number of frames the sytem will process before commenc
 SV_SEND_DELAY			= 1000		# number of frames the system will process before sending to server
 
 # FAST (Fast Feature Detector)
-FFD_THRESHOLD			= 84
+FFD_THRESHOLD			= 66
 				# Can incremement this with fast.setThreshold
 
 # Descriptor Extractor
@@ -67,9 +68,8 @@ _FILTER_SPEED			= 30						# max concernable filter speed in kph
 class tracker:
 	"""Class used to track vehicles."""
 
-	def __init__(self,loc,frameInit):
+	def __init__(self, loc, frameInit):
 		"""Initialize things."""
-
 		# Initialise the requester
 		if loc == "Top":
 			_PPM_UNSCALED = 205
@@ -124,23 +124,31 @@ class tracker:
 		self.currentDistances = []
 
 		if loc == "Top":
-			self._PPM = float(178)
+			_PPM = float(178)
 		else:
-			self._PPM = float(205)
+			_PPM = float(205)
 
-		self._PPM = float( self._PPM / IM_BIN_SIZE / 3)
+		_PPM = float( _PPM / IM_BIN_SIZE / 3)
 
+		self.readyStatus = True
+
+	def run(self, frame):
+		"""Run the tracker given a frame input."""
+		if self.readyStatus == False:
+			self.track(frame)
+		else:
+			time.sleep(0.001)
 
 	####### ------- track ------- #######
 	# Takes a frame input and finds information about it.  The Frame is
 	# input from the expresswayCam class having already been processed
 	# (cropped, resized, etc.).
-	def track(self,frame):
+	def track(self, frame):
 		"""Main function of Tracker class."""
 		self.count = self.count + 1 # increment the counter
 		
 		if SV_DEMO:
-			cv2.imshow('Base Frame' + self.loc,frame)
+			cv2.imshow('Base Frame' + self.loc, frame)
 				
 		# Run the FastFeatureDetector
 		keypoints = self.fast.detect(frame, None)
@@ -148,6 +156,7 @@ class tracker:
 		if SV_FILTER_KEYPOINTS:
 			# Filter out all the points we dont want
 			keypoints = self.keypointFilter(keypoints)
+			cv2.imshow("Baseframe" + self.loc, self.baseFrame)
 					
 		# Get the descriptors for our keypoints
 		keypointsFilt, descriptors = self.descFinder(keypoints, frame)
@@ -156,6 +165,10 @@ class tracker:
 		#	This gives us enough time to build up a nice background model for the keypoint
 		#	processor so that it isnt trying to brute force check 500 features.
 		if self.count > SV_START_DELAY:
+			blankFrame = frame.copy()	# Make a copy of the frame so that we don't break it
+			# Draw keypoints and number of features that we're tracking
+			blankOut = cv2.drawKeypoints(blankFrame, keypointsPreFilter, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+			cv2.imshow('All Detected Features' + self.loc,blankOut)
 			# Match Keypoints
 			matchedPoints = self.descCompare(descriptors)
 
@@ -179,7 +192,7 @@ class tracker:
 
 				# Draw the current average speed onto the frame
 				out_img = cv2.putText(out_img,"Speed: {0:06.2f} kph".format(self.averageSpeed),(30,30), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
-				out_img = cv2.putText(out_img,"PPM: {0:06.2f}".format(self._PPM),(30,60), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
+				out_img = cv2.putText(out_img,"PPM: {0:06.2f}".format(_PPM),(30,60), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
 				cv2.imshow('Matches and Speed Output' + self.loc,out_img)
 
 				# Draw the corner features
@@ -207,7 +220,7 @@ class tracker:
 		newKeypoints = []
 
 		# Quickly update the entire frame based on the learning rate
-		self.baseFrame = (self.baseFrame % 10) * (1 - _LR1 / 3)
+		self.baseFrame = (self.baseFrame) * (1 - _LR1 / 3)
 
 		# the keypoint check
 		for i in range(0,len(keypoints)):
@@ -219,7 +232,7 @@ class tracker:
 			pointVal = self.baseFrame[pointX,pointY]
 
 			# If there is no evidence of an existing point
-			if (1 - pointVal) > 0.5:
+			if pointVal <  0.5:
 				# Append this keypoint to the list of good points
 				newKeypoints.append(keypoints[i])
 		
@@ -249,7 +262,7 @@ class tracker:
 	####### ------- descCompare ------- #######
 	# Takes newly found descriptors and compares them to the descriptors
 	# of the previous frame to find matches.
-	def descCompare(self , dsc):
+	def descCompare(self, dsc):
 		"""Brute force checks for matches between two sets of descriptors.
 		Takes an input of a vector of descriptors."""
 		
@@ -314,12 +327,6 @@ class tracker:
 			self.currentDistances = []
 			self.currentDistances = filteredDistances
 
-		if self.count > 1000:
-			plt.hist(self.currentDistances, bins=60)  # arguments are passed to np.histogram
-			plt.axvline(np.median(np.array(self.currentDistances)), color='b', linestyle='dashed', linewidth=2)
-			plt.title("Histogram with 'auto' bins")
-			plt.show()
-
 		# If we are running from live video
 		if SV_RUN_LIVE:
 			####### ------- PLEASE NOTE ------- #######
@@ -329,7 +336,7 @@ class tracker:
 
 			# Get the current frames parameters
 			self.currentFrame = (sum(self.currentDistances) / float(len(self.currentDistances))) * (1 / (self.timeFinish - self.timeStart))
-			self.currentSpeed = (self.currentFrame / self._PPM) * _MPS_to_KPH
+			self.currentSpeed = (self.currentFrame / _PPM) * _MPS_to_KPH
 			
 			# If this is the first time running, set initial average parameters
 			if self.firstCount:
@@ -346,7 +353,7 @@ class tracker:
 			if len(self.currentDistances) is not 0:
 				# There are cars in the frame, do analysis
 				self.currentFrame = (float(sum(self.currentDistances)) / float(len(self.currentDistances)))
-				self.currentSpeed = (self.currentFrame / float(self._PPM)) * float(_MPS_to_KPH) / float(1 / _FPS)
+				self.currentSpeed = (self.currentFrame / float(_PPM)) * float(_MPS_to_KPH) / float(1 / _FPS)
 			else: 
 				# There are no cars in the frame, carry the averag speed from previous
 				self.currentFrame = self.averageFrame
