@@ -23,9 +23,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="counter.py" />
-    <Compile Include="ewc.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="expresswayCamera.py" />
     <Compile Include="ewctools.py">
       <SubType>Code</SubType>
