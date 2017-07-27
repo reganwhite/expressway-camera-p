@@ -1,16 +1,18 @@
 import time
 import cv2
 import numpy as np
-from ewc import ewc
 
 MAX_INT = 255
 
 class counter:
 	"""Handler for sensor class."""
-	def __init__(self, frame, loc, left = 2, right = 2, lr = 0.02):
+	def __init__(self, frame, loc, settings, left = 2, right = 2, lr = 0.02):
 		"""Initialize the handler."""
 		# Set the dimensions of the base frame
 		self.height, self.width = frame.shape
+
+		# Import the settings
+		self.cfg = settings
 
 		# Parse input params
 		self.left	= left

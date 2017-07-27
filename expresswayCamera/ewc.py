@@ -18,13 +18,11 @@ class ewc:
 
 		#------------------------------------------------------------------------------------
 		###### ------- expresswayCamera settings ------- ######
-		
-		# Counter resolution
-		cfg.COUNT_RES = 3
-		cfg.SV_COUNT_UPDATE = 50
-		cfg.SV_TRACK = True
-		cfg.SV_COUNT = False
-		cfg.SV_LIVE	= False
+		cfg.SV_TRACK				= True
+		cfg.SV_COUNT				= False
+		cfg.SV_LIVE					= False
+		cfg.COUNT_RES				= 3			# Counter resolution
+		cfg.SV_COUNT_UPDATE			= 50		# 
 
 		#------------------------------------------------------------------------------------
 		###### ------- tracker settings ------- ######
