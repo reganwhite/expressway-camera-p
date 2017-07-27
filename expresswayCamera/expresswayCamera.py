@@ -5,24 +5,25 @@ import numpy as np
 import cv2
 import time
 import math
-from adjuster import adjuster
-from tracker import tracker
-from adjuster import adjuster
 import socket
-from counter import counter
 import sys
+from tracker import tracker
+from counter import counter
 from threading import Thread
-from ewctools import timer
+from ewctools import timer, adjuster
+
+if cv2.__version__ == "3.2.0":
+	print("The ExpresswayCamera software was designed using OpenCV version 3.2.0.")
+	print("")
+	print "This system is running OpenCV version " + cv2.__version__ + ", which might not be supported."
+	print("")
+	print("Be aware that if your OpenCV is not at least version 3.0.0, the system")
+	print("may be unstable, or not function correctly.  In fact, I'd be surprised")
+	print("if it worked at all.")
+	print("")
+
 #import picamera
 #import picamera.array
-
-# Counter resolution
-COUNT_RES = 2
-SV_COUNT_UPDATE = 50
-SV_TRACK = False
-SV_COUNT = True
-SV_LIVE	= False
-
 
 ###### ------- ewc ------- ######
 # Settings class
@@ -44,6 +45,7 @@ class ewc:
 		#------------------------------------------------------------------------------------
 		###### ------- expresswayCamera settings ------- ######
 	
+		cfg.SV_USE_DEBUG			= True
 		cfg.SV_TRACK				= False
 		cfg.SV_COUNT				= True
 		cfg.SV_LIVE					= False
@@ -53,7 +55,6 @@ class ewc:
 		###### ------- tracker settings ------- ######
 
 		# Define some flags
-		cfg.SV_USE_DEBUG			= True
 		cfg.SV_FILTER_KEYPOINTS		= True
 		cfg.SV_DEMO					= True		# FLAG FOR PROJECT DEMONSTRATION
 		cfg.SV_RUN_LIVE				= False
@@ -113,15 +114,28 @@ class expresswayCamera:
 	def __init__(self):
 		"""Initialize variables."""
 		# Initialise the settings object inside a list
-		self.cfg = [ewc()]
-
-		# Get the system name to find the videofile
-		name = socket.gethostname()
-
+		print("---------------------------------------------------------------")
+		print("---------------------- Expressway Camera ----------------------")
+		print("")
+		print("A Computer Vision Project by Regan White.")
+		print("Made using Python 2.7 and OpenCV 3.2.0.")
+		print("Built and tested for Raspberry Pi v3 use on the Riverside Expressway in")
+		print("Designed for use on the Riverside Expressway in Brisbane, AUS")
+		print("---------------------------------------------------------------")
+		print("Initializing...")
+		try:
+			print("Importing Settings...")
+			self.cfg = [ewc()]
+		except:
+			print("Settings Import failed.  Quitting.")
+			quit()
 		# Initalize adjuster
-		self.adj = adjuster()
-
+		self.adj = adjuster(self.cfg)
+		
 		if self.cfg[0].SV_LIVE == False:
+			print("Getting host name.")
+			name = socket.gethostname()
+
 			# Figure out the location of the video file
 			if name == "Regan-PC":
 				CAP_VIDEOFILE = "E:/testVideoG.mp4"
@@ -130,7 +144,8 @@ class expresswayCamera:
 			elif name == "RWHIT-PI801":
 				CAP_VIDEOFILE = "testVideoH.mp4"
 			else:
-				sys.exit("Dont know what device this is running on. Exitting.")
+				print("Dont know what device this is running on. Exitting.")
+				quit()
 
 			# Initiate our Frame Capture
 			self.frameCapture = cv2.VideoCapture(CAP_VIDEOFILE)
@@ -144,18 +159,20 @@ class expresswayCamera:
 			top, bot = self.adj.adjust(frame, resize = False)
 
 		if self.cfg[0].SV_TRACK:
-			# Initialize the objects
+		# Initialize the trackers objects
 			self.top_track = tracker("Top",top)
 			self.bot_track = tracker("Bot",bot)
 
 		if self.cfg[0].SV_COUNT:
-			# Initialize the counters.
+		# Initialize the counters objects
 			self.top_count = counter(top, self.cfg, "Top", right = self.cfg[0].COUNT_RES, left = self.cfg[0].COUNT_RES, lr = 0.02)
 			self.bot_count = counter(bot, self.cfg, "Bot", right = self.cfg[0].COUNT_RES, left = self.cfg[0].COUNT_RES, lr = 0.02)
 
-		self.timer_root = timer(NAME = "FPS", ROOT = True)
-		self.timer_count = timer(NAME = "CPS", DISP_TIME = True)
-		self.timer_read	 = timer(NAME = "RPS", DISP_TIME = True, DISP_PERC = True)
+		# Initialize the counters objects
+		self.timer_root	 = timer(USE = self.cfg[0].SV_USE_DEBUG, NAME = "FPS", ROOT = True)
+		self.timer_count = timer(USE = self.cfg[0].SV_USE_DEBUG, NAME = "CPS", DISP_TIME = False, DISP_PERC = True)
+		self.timer_track = timer(USE = self.cfg[0].SV_USE_DEBUG, NAME = "TPS", DISP_TIME = False)
+		self.timer_read	 = timer(USE = self.cfg[0].SV_USE_DEBUG, NAME = "RPS", DISP_TIME = False, DISP_PERC = True)
 
 	def loop(self):
 		"""Main loop of expresswayCam class"""
@@ -164,25 +181,37 @@ class expresswayCamera:
 		float = 0
 		while self.frameCapture.isOpened():
 			count = count + 1
+
 			self.timer_root.tik()
 			self.timer_read.tik()
+
+			# Read frame from file
 			success, frame = self.frameCapture.read()
+
 			self.timer_read.tok()
+
 			if success:
 				top, bot = self.adj.adjust(frame)
 				
 				if self.cfg[0].SV_TRACK:
+					self.timer_track.tik()
+
 					self.top_track.track(top)
 					self.bot_track.track(bot)
 
+					self.timer_track.tok()
+
 				if self.cfg[0].SV_COUNT:
 					self.timer_count.tik()
+
 					self.top_count.run(top)
 					self.bot_count.run(bot)
+
 					self.timer_count.tok()
 			else:
 				print("Looks like we've run out of frames to read.")
 				print("This is either because of an error, or because we've finished reading the file.")
+				print("Total frame count: {0:}".format(count))
 				quit()
 
 			# Wait for key input and exit on Q

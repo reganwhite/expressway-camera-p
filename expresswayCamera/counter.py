@@ -56,8 +56,8 @@ class counter:
 			self.sensor_r.append(sensor(self.width - (self.x + (float(i) * float(self.width) / 10)), self.lr1, frame))
 
 		# Initialise a couple of timers to test things our
-		self.timer1 = timer(NAME = loc + "-CNT-RUN")
-		self.timer2 = timer(NAME = loc + "-CNT-CMP")
+		self.timer1 = timer(NAME = loc + "-CNT-RUN", USE = False)
+		self.timer2 = timer(NAME = loc + "-CNT-CMP", USE = False)
 
 
 	def run(self, frame):
@@ -110,9 +110,6 @@ class counter:
 						if statusRight[i][j] == False:
 							self.carCounter[1] += 0.33
 		self.timer2.tok()
-		#if self.count % 50 == 0:
-			#print np.average(self.carCounter)
-
 		# Update the historical flags
 		self.histLeft	= statusLeft
 		self.histRight	= statusRight
@@ -175,11 +172,6 @@ class sensor:
 			a = np.average(frame[i * self.h / 4 + self.h / 8 - self.h / 24:i * self.h / 4 + self.h / 8 + self.h / 24])
 			b = np.average(self.truth[i * self.h / 4 + self.h / 8-  self.h / 24:i * self.h / 4 + self.h / 8 + self.h / 24])
 			
-			if self.count == 50:
-				print "Dimension"
-				print i * self.h / 4 + self.h / 8 - self.h / 24
-				print i * self.h / 4 + self.h / 8 + self.h / 24
-
 			# Check to see if the two are sufficiently different.  If they are,
 			# then set the flag as True.
 			diff = np.abs(((a - b) / b) * 100)
