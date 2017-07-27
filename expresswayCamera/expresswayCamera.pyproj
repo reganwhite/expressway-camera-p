@@ -29,6 +29,9 @@
     </Compile>
     <Compile Include="expresswayCamera.py" />
     <Compile Include="requester.py" />
+    <Compile Include="ewctools.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="tracker.py" />
   </ItemGroup>
   <ItemGroup>

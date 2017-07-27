@@ -7,6 +7,7 @@ from requester import requester
 import string
 import random
 import matplotlib.pyplot as plt
+from ewctools import timer
 
 
 # Define some flags

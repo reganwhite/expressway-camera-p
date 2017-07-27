@@ -12,6 +12,7 @@ import socket
 from counter import counter
 import sys
 from threading import Thread
+from ewctools import timer
 #import picamera
 #import picamera.array
 
@@ -43,8 +44,8 @@ class ewc:
 		#------------------------------------------------------------------------------------
 		###### ------- expresswayCamera settings ------- ######
 	
-		cfg.SV_TRACK				= True
-		cfg.SV_COUNT				= False
+		cfg.SV_TRACK				= False
+		cfg.SV_COUNT				= True
 		cfg.SV_LIVE					= False
 		cfg.COUNT_RES				= 3			# Counter resolution
 
@@ -149,10 +150,12 @@ class expresswayCamera:
 
 		if self.cfg[0].SV_COUNT:
 			# Initialize the counters.
-			self.top_count = counter(top, "Top", right = self.cfg[0].COUNT_RES, left = self.cfg[0].COUNT_RES, lr = 0.02)
-			self.bot_count = counter(bot, "Bot", right = self.cfg[0].COUNT_RES, left = self.cfg[0].COUNT_RES, lr = 0.02)
+			self.top_count = counter(top, self.cfg, "Top", right = self.cfg[0].COUNT_RES, left = self.cfg[0].COUNT_RES, lr = 0.02)
+			self.bot_count = counter(bot, self.cfg, "Bot", right = self.cfg[0].COUNT_RES, left = self.cfg[0].COUNT_RES, lr = 0.02)
 
-		self.frame_time = time.time()
+		self.timer_root = timer(NAME = "FPS", ROOT = True)
+		self.timer_count = timer(NAME = "CPS", DISP_TIME = True)
+		self.timer_read	 = timer(NAME = "RPS", DISP_TIME = True, DISP_PERC = True)
 
 	def loop(self):
 		"""Main loop of expresswayCam class"""
@@ -161,12 +164,11 @@ class expresswayCamera:
 		float = 0
 		while self.frameCapture.isOpened():
 			count = count + 1
-			# get the next frame
-			if count % 100 == 1:
-				time1 = time.time()
+			self.timer_root.tik()
+			self.timer_read.tik()
 			success, frame = self.frameCapture.read()
+			self.timer_read.tok()
 			if success:
-				self.frame_time = time.time()
 				top, bot = self.adj.adjust(frame)
 				
 				if self.cfg[0].SV_TRACK:
@@ -174,8 +176,10 @@ class expresswayCamera:
 					self.bot_track.track(bot)
 
 				if self.cfg[0].SV_COUNT:
+					self.timer_count.tik()
 					self.top_count.run(top)
 					self.bot_count.run(bot)
+					self.timer_count.tok()
 			else:
 				print("Looks like we've run out of frames to read.")
 				print("This is either because of an error, or because we've finished reading the file.")
@@ -185,10 +189,8 @@ class expresswayCamera:
 			key = cv2.waitKey(1) & 0xff
 			if key == ord('q'):
 				break
-
-			if count % 100 == 0 and count > 100:
-				print('\r[FPS] = {0:2.3f}'.format(100/(time.time() - time1)))
-
+			
+			self.timer_root.tok()
 		# Release the frame capture and exit the function
 		self.frameCapture.release()
 
