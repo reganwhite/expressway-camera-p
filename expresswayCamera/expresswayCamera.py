@@ -51,7 +51,7 @@ class ewc:
 		cfg.SV_TRACK				= False
 		cfg.SV_COUNT				= True
 		cfg.SV_LIVE					= False
-		cfg.COUNT_RES				= 3			# Counter resolution
+		cfg.COUNT_RES				= 4  			# Counter resolution
 
 		#------------------------------------------------------------------------------------
 		###### ------- tracker settings ------- ######
@@ -142,7 +142,7 @@ class expresswayCamera:
 
 			# Figure out the location of the video file
 			if name == "Regan-PC":
-				CAP_VIDEOFILE = "E:/testVideoG.mp4"
+				CAP_VIDEOFILE = "E:/testVideoD.mp4"
 			elif name == "Regan-Surface":
 				CAP_VIDEOFILE = "C:/testVideoH.mp4"
 			elif name == "RWHIT-PI801":
@@ -174,8 +174,8 @@ class expresswayCamera:
 
 		if self.cfg.SV_COUNT:
 		# Initialize the counters objects
-			self.top_count = counter(top, self.cfg, "Top", right = self.cfg.COUNT_RES, left = self.cfg.COUNT_RES, lr = 0.02)
-			self.bot_count = counter(bot, self.cfg, "Bot", right = self.cfg.COUNT_RES, left = self.cfg.COUNT_RES, lr = 0.02)
+			self.top_count = counter(top, self.cfg, "Top", right = self.cfg.COUNT_RES, left = self.cfg.COUNT_RES, LR = 0.02)
+			self.bot_count = counter(bot, self.cfg, "Bot", right = self.cfg.COUNT_RES, left = self.cfg.COUNT_RES, LR = 0.02)
 
 		# Initialize the counters objects
 		self.timer_root	 = timer(USE = self.cfg.SV_USE_DEBUG, NAME = "FPS", ROOT = True)

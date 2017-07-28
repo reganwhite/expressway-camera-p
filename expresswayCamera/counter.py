@@ -7,7 +7,7 @@ MAX_INT = 255
 
 class counter:
 	"""Handler for sensor class."""
-	def __init__(self, frame, settings, loc, left = 2, right = 2, lr = 0.02):
+	def __init__(self, frame, settings, loc, left = 2, right = 2, LR = 0.02):
 		"""Initialize the handler."""
 		# Set the dimensions of the base frame
 		self.height, self.width = frame.shape
@@ -18,16 +18,23 @@ class counter:
 		# Counter to keep track of how many frames we've processed
 		self.count = 0
 
+		# Sensor initialisation parameters
+		self.LANES = 4		# pretty self explanatory
+		self.SPACE = 20		# factor of total width that the sensors should be spaced apart
+		self.OFFSET = 10	# offset that the sensors need to be from the sides of then frame
+
 		# Counter for the number of cars counted
 		self.carCounter = [0,0]
 
 		# Parse input params
 		self.left	= left
 		self.right	= right
-		self.lr1	= lr
+		self.LR1	= LR
+		self.LR1_BASE	= LR
+		self.LR1_UPDATE = False
+		self.FILTER_SPEED = 30
 
 		# Define where we want the slices to be
-		self.x = 2 
 
 		# Initialize lists to store sensor objects
 		self.sensor_l = []
@@ -51,19 +58,19 @@ class counter:
 
 		# Populate the lists with instances of "sensor"
 		for i in range(0, self.left):
-			self.sensor_l.append(sensor(self.x + (float(i) * float(self.width) / 10), self.lr1, frame))
+			self.sensor_l.append(sensor(self.OFFSET + (float(i) * float(self.width) / self.SPACE), self.LR1, frame))
 		for i in range(0, self.right):
-			self.sensor_r.append(sensor(self.width - (self.x + (float(i) * float(self.width) / 10)), self.lr1, frame))
+			self.sensor_r.append(sensor(self.width - (self.OFFSET + (float(i) * float(self.width) / self.SPACE)), self.LR1, frame))
 
 		# Initialise a couple of timers to test things our
 		self.timer1 = timer(NAME = loc + "-CNT-RUN", USE = False)
 		self.timer2 = timer(NAME = loc + "-CNT-CMP", USE = False)
 
 
-	def run(self, frame):
+	def run(self, frame, SPEED = False):
 		"""Run the sensors. Takes a frame as input."""
 		# Run the updater
-		self.update(frame)
+		self.update(frame, SPEED)
 		return self.carCounter
 
 	def push(self, frame):
@@ -82,10 +89,21 @@ class counter:
 		"""Sets the run status of the module to the input."""
 		self.runStatus = status
 
-	def update(self, frame):
+	def updateLEARN(self, SPEED):
+		if SPEED != False:
+			if SPEED >= 0:
+				self.LR1_UPDATE = True
+				if SPEED > self.FILTER_SPEED:
+					SPEED = self.FILTER_SPEED
+				self.LR1 = self.LR1_BASE * (float(self.FILTER_SPEED) / float(SPEED))
+
+	def update(self, frame, SPEED = False):
 		"""Operates the sensor instances."""
 		# Update the counter
 		self.count += 1
+
+		if SPEED != False:
+			self.updateLEARN(SPEED)
 
 		# Initialize storage for 
 		statusLeft = []
@@ -94,24 +112,31 @@ class counter:
 		self.timer1.tik()
 		# Run the sensors given the input frame
 		for i in range(0, self.left):
+			if self.LR1_UPDATE == True:
+				self.sensor_l[i].updateLEARN(self.LR1)
 			statusLeft.append(self.sensor_l[i].run(frame))
 		for i in range(0, self.right):
+			if self.LR1_UPDATE == True:
+				self.sensor_r[i].updateLEARN(self.LR1)
 			statusRight.append(self.sensor_r[i].run(frame))
 		self.timer1.tok()
 		self.timer2.tik()
-		#print self.histLeft
-		#print statusLeft
+		if self.LR1_UPDATE == True:
+			self.LR1_UPDATE = False
+
 		# If the sensor has been running for a sufficient amount of time
 		if self.count > 100:
-			for i in range(0,3):
-				for j in range(0,3):
-					if self.histLeft[i][j] == True:
-						if statusLeft[i][j] == False:
-							self.carCounter[0] += 1 / self.left
-
-					if self.histRight[i][j] == True:
-						if statusRight[i][j] == False:
-							self.carCounter[1] += 1 / self.right
+			for i in range(0, self.LANES):
+				for j in range(0, self.left):
+				# Sensors on the left of frame
+					if self.histLeft[j][i] == True:
+						if statusLeft[j][i] == False:
+							self.carCounter[0] += float(1) / float(self.left)	# Looks like we found a car, increment counter
+				for j in range(0, self.right):
+				# Sensors on the right of frame
+					if self.histRight[j][i] == True:
+						if statusRight[j][i] == False:
+							self.carCounter[1] += float(1) / float(self.right)	# Looks like we found a car, increment counter
 		self.timer2.tok()
 		# Update the historical flags
 		self.histLeft	= statusLeft[:]
@@ -121,14 +146,14 @@ class counter:
 		keypoints = []
 		# Analyse output flags to see if things are working correctly.
 		for i in range(0, self.left):
-			for j in range(0, 3):
+			for j in range(0, self.LANES):
 				if self.sensor_l[i].flag[j]:
-					keypoints.append(cv2.KeyPoint(self.sensor_l[i].x, (self.height / 8) + j * self.height / 4, 5))
+					keypoints.append(cv2.KeyPoint(self.sensor_l[i].OFFSET, (self.height / 8) + j * self.height / 4, 5))
 
 		for i in range(0, self.right):
-			for j in range(0, 3):
+			for j in range(0, self.LANES):
 				if self.sensor_r[i].flag[j]:
-					keypoints.append(cv2.KeyPoint(self.sensor_r[i].x, (self.height / 8) + j * self.height / 4, 5))
+					keypoints.append(cv2.KeyPoint(self.sensor_r[i].OFFSET, (self.height / 8) + j * self.height / 4, 5))
 
 		blankFrame = frame.copy()	# Make a copy of the frame so that we don't break it
 		# Draw keypoints and number of features that we're tracking
@@ -136,25 +161,30 @@ class counter:
 		cv2.imshow('Ping' + self.loc,blankOut)
 
 
+###### ------- sensor ------- ######
+# Class used by counter.  Monitors a vertical slice covering all lanes of the road, and throws flags
+# depending on whether or not a car is detected on the slice within a lane.
 class sensor:
 	"""Counts cars!"""
-	def __init__(self, dim, lr1, frame):
+	def __init__(self, OFFSET, LR1, frame, CHECK_SIZE_FACTOR = 24, LANES = 4, DIFFERENCE = 30, THICKNESS = 1):
 		"""Initialize the object."""
 		# Set up constants the such
-		self.h, self.w	= frame.shape	# Set the dimensions of the slice
-		self.x		= int(dim)		# x location of the slice
-		self.dr		= 30		# Required difference for a car to exist (%)
-		self.lr1	= lr1		# Define the learning rate of the model
-		self.LANES	= 4			# How many lanes are we looking at?
+		self.h, self.w = frame.shape	# Set the dimensions of the slice
+		self.OFFSET	= int(OFFSET)		# x location of the slice
+		self.DIFFERENCE	= DIFFERENCE	# Required difference for a car to exist (%)
+		self.LR1 = LR1					# Define the learning rate of the model
+		self.LANES = LANES				# How many lanes are we looking at?
+		self.CHECK_SIZE_FACTOR = CHECK_SIZE_FACTOR	# What factor of the frame height are we going to check the difference of?
+		self.THICKNESS = THICKNESS		# How thick do we want the slice to be?
 
+		# Initialize counter
 		self.count	= 0
 		
 		# take the truth of the background
-		self.truth	= frame[ 0:self.h, self.x:self.x + 1]
+		self.truth	= frame[ 0:self.h, self.OFFSET:self.OFFSET + 1]
 		
 		# Set our flags for whether or not a car exists
 		self.flag		= [ False, False, False, False ]
-		self.flag_fixd	= [ False, False, False, False ]
 		self.flag_cnt	= [ 0, 0, 0, 0 ]
 
 		self.bounced = []
@@ -163,7 +193,7 @@ class sensor:
 
 	def update(self, frame):
 		"""Update the background-truth intensity model."""
-		self.truth = self.truth * (1 - self.lr1) + frame * self.lr1
+		self.truth = self.truth * (1 - self.LR1) + frame * self.LR1
 
 	####### ------- compare ------- #######
 	# Compares the input frame to a historical model of the road.  If the average
@@ -180,13 +210,13 @@ class sensor:
 		# Perform comparison between frame and truth
 		for i in range(0,self.LANES):
 			# Take the average of the lane section and append it to the buffer
-			a = np.average(frame[i * self.h / 4 + self.h / 8 - self.h / 24:i * self.h / 4 + self.h / 8 + self.h / 24])
-			b = np.average(self.truth[i * self.h / 4 + self.h / 8 - self.h / 24:i * self.h / 4 + self.h / 8 + self.h / 24])
+			a = np.average(frame[i * self.h / self.LANES + self.h / (self.LANES * 2) - self.h / self.CHECK_SIZE_FACTOR:i * self.h / self.LANES + self.h / (self.LANES * 2) + self.h / self.CHECK_SIZE_FACTOR])
+			b = np.average(self.truth[i * self.h / self.LANES + self.h / (self.LANES * 2) - self.h / self.CHECK_SIZE_FACTOR:i * self.h / self.LANES + self.h / (self.LANES * 2) + self.h / self.CHECK_SIZE_FACTOR])
 			
 			# Check to see if the two are sufficiently different.  If they are,
 			# then set the flag as True.
 			diff = np.abs(((a - b) / b) * 100)
-			if diff > self.dr:
+			if diff > self.DIFFERENCE:
 				self.flag[i] = True
 
 		# Update the truth for the next frame
@@ -194,7 +224,7 @@ class sensor:
 
 	def run(self, frame):
 		"""Main function called exteriorly by the handler."""
-		cropFrame = frame[ 0:self.h, self.x:self.x + 1] # Crop the frame
+		cropFrame = frame[ 0:self.h, self.OFFSET:self.OFFSET + 1] # Crop the frame
 		self.compare(cropFrame) # Perform the comparison
 
 		# Return the flags thrown by the comparison
@@ -208,24 +238,43 @@ class sensor:
 			outcome.append(self.bounced[i].run(self.flag[i]))
 
 		return outcome
+
+	def updateLEARN(self, LR):
+		"""Update the sensor learning rate from input."""
+		self.LR1 = LR
 	
+
+###### ------- bounce ------- ######
+# Small class used by the sensor class.  Monitors the stability of flag changes, to prevent flickering
+# from affecting the vehicle count.
 class bounce:
-	def __init__(self):
-		"""Debounces flags.  Prevents flags appearing and disappearing, and triggering the counter."""
-		self.curr = False
-		self.fail = 0
-		self.good = 0
+	"""Debounces flags.  Prevents flags appearing and disappearing, and triggering the counter."""
+	def __init__(self, THRESHOLD = 3):
+		"""Initialise variables."""
+		# Initialise variables
+		self.curr = False	# current sensor state
+		self.good = 0		# number of good comparisons
+		self.fail = 0		# number of bad comparisons
+		self.THRESHOLD = THRESHOLD
 
 	def run(self,bool):
+		"""Takes a boolean input, and checks against historic inputs for stability.  Returns current state."""
 		if bool != self.curr:
-			self.fail += 1
-			if self.fail > 3:
-				self.curr = not self.curr
+		# input is different to current state
+			self.fail += 1	# increment bad comparison
+			if self.fail > self.THRESHOLD:
+			# number of bad comparisons has passed threshold, switching state
+				self.curr = not self.curr	# switch state
+				
+				# reset counters
 				self.fail = 0
 				self.good = 0
+
 		else:
+		# input is the same as current state
 			self.good += 1
-			if self.good > 3:
+			if self.good > self.THRESHOLD:
+			# input has been consistently good, reset counters
 				self.fail = 0
 				self.good = 0
 
