@@ -91,18 +91,18 @@ class adjuster:
 		#	3. RGB -> Greyscale
 		#	4. Blur
 		if crop:
-			frame = frame[self.cfg[0]._Y1:self.cfg[0]._Y2, self.cfg[0]._X1:self.cfg[0]._X2]
+			frame = frame[self.cfg._Y1:self.cfg._Y2, self.cfg._X1:self.cfg._X2]
 		if resize:
-			frame = cv2.resize(frame,(self.cfg[0]._W, self.cfg[0]._H),0,0,cv2.INTER_LINEAR)	# Resize the frame to make it more manageable - INTER_LINEAR because it's fast
+			frame = cv2.resize(frame,(self.cfg._W, self.cfg._H),0,0,cv2.INTER_LINEAR)	# Resize the frame to make it more manageable - INTER_LINEAR because it's fast
 		if cvt:
 			frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)			# Convert RGB to Grayscale
-		if self.cfg[0].GAUSS_KSIZE != 0:
-			frame = cv2.GaussianBlur(frame, (self.cfg[0].GAUSS_KSIZE, self.cfg[0].GAUSS_KSIZE), 0)	# Perform Gaussian Blur to make things run a bit easier
+		if self.cfg.GAUSS_KSIZE != 0:
+			frame = cv2.GaussianBlur(frame, (self.cfg.GAUSS_KSIZE, self.cfg.GAUSS_KSIZE), 0)	# Perform Gaussian Blur to make things run a bit easier
 
 		# Split the road into top/bottom
 		sizeX, sizeY = frame.shape[:2]
-		frameTop = frame[0:self.inboundHeight / self.cfg[0].IM_BIN_SIZE - 1, 0:sizeX]
-		frameBot = frame[self.inboundHeight / self.cfg[0].IM_BIN_SIZE:sizeY, 0:sizeX]
+		frameTop = frame[0:self.inboundHeight / self.cfg.IM_BIN_SIZE - 1, 0:sizeX]
+		frameBot = frame[self.inboundHeight / self.cfg.IM_BIN_SIZE:sizeY, 0:sizeX]
 
 		return frameTop, frameBot
 

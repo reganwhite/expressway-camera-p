@@ -64,6 +64,7 @@ class counter:
 		"""Run the sensors. Takes a frame as input."""
 		# Run the updater
 		self.update(frame)
+		return self.carCounter
 
 	def push(self, frame):
 		"""Pushes the latest frame to the object."""
@@ -98,38 +99,41 @@ class counter:
 			statusRight.append(self.sensor_r[i].run(frame))
 		self.timer1.tok()
 		self.timer2.tik()
+		#print self.histLeft
+		#print statusLeft
 		# If the sensor has been running for a sufficient amount of time
 		if self.count > 100:
 			for i in range(0,3):
 				for j in range(0,3):
 					if self.histLeft[i][j] == True:
 						if statusLeft[i][j] == False:
-							self.carCounter[0] += 0.33
+							self.carCounter[0] += 1 / self.left
 
 					if self.histRight[i][j] == True:
 						if statusRight[i][j] == False:
-							self.carCounter[1] += 0.33
+							self.carCounter[1] += 1 / self.right
 		self.timer2.tok()
 		# Update the historical flags
-		self.histLeft	= statusLeft
-		self.histRight	= statusRight
+		self.histLeft	= statusLeft[:]
+		self.histRight	= statusRight[:]
+		
 
 		keypoints = []
 		# Analyse output flags to see if things are working correctly.
-		#for i in range(0, self.left):
-		#	for j in range(0, 3):
-		#		if self.sensor_l[i].flag[j]:
-		#			keypoints.append(cv2.KeyPoint(self.sensor_l[i].x, (self.height / 8) + j * self.height / 4, 5))
+		for i in range(0, self.left):
+			for j in range(0, 3):
+				if self.sensor_l[i].flag[j]:
+					keypoints.append(cv2.KeyPoint(self.sensor_l[i].x, (self.height / 8) + j * self.height / 4, 5))
 
-		#for i in range(0, self.right):
-		#	for j in range(0, 3):
-		#		if self.sensor_r[i].flag[j]:
-		#			keypoints.append(cv2.KeyPoint(self.sensor_r[i].x, (self.height / 8) + j * self.height / 4, 5))
+		for i in range(0, self.right):
+			for j in range(0, 3):
+				if self.sensor_r[i].flag[j]:
+					keypoints.append(cv2.KeyPoint(self.sensor_r[i].x, (self.height / 8) + j * self.height / 4, 5))
 
-		#blankFrame = frame.copy()	# Make a copy of the frame so that we don't break it
-		## Draw keypoints and number of features that we're tracking
-		#blankOut = cv2.drawKeypoints(blankFrame, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-		#cv2.imshow('Ping' + self.loc,blankOut)
+		blankFrame = frame.copy()	# Make a copy of the frame so that we don't break it
+		# Draw keypoints and number of features that we're tracking
+		blankOut = cv2.drawKeypoints(blankFrame, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+		cv2.imshow('Ping' + self.loc,blankOut)
 
 
 class sensor:
@@ -149,7 +153,13 @@ class sensor:
 		self.truth	= frame[ 0:self.h, self.x:self.x + 1]
 		
 		# Set our flags for whether or not a car exists
-		self.flag	= [ False, False, False, False ]
+		self.flag		= [ False, False, False, False ]
+		self.flag_fixd	= [ False, False, False, False ]
+		self.flag_cnt	= [ 0, 0, 0, 0 ]
+
+		self.bounced = []
+		for i in range(0,self.LANES):
+			self.bounced.append(bounce())
 
 	def update(self, frame):
 		"""Update the background-truth intensity model."""
@@ -166,11 +176,12 @@ class sensor:
 
 		# Take the frame and find its average intensity for the four sections
 		self.flag = [ False, False, False, False ] # Reset the buffer
+		
 		# Perform comparison between frame and truth
 		for i in range(0,self.LANES):
 			# Take the average of the lane section and append it to the buffer
 			a = np.average(frame[i * self.h / 4 + self.h / 8 - self.h / 24:i * self.h / 4 + self.h / 8 + self.h / 24])
-			b = np.average(self.truth[i * self.h / 4 + self.h / 8-  self.h / 24:i * self.h / 4 + self.h / 8 + self.h / 24])
+			b = np.average(self.truth[i * self.h / 4 + self.h / 8 - self.h / 24:i * self.h / 4 + self.h / 8 + self.h / 24])
 			
 			# Check to see if the two are sufficiently different.  If they are,
 			# then set the flag as True.
@@ -191,5 +202,31 @@ class sensor:
 
 	def retFlag(self):
 		"""Return the current lane flags."""
-		return self.flag
+		# Compare the current frames flags to the previous frames flags
+		outcome = []
+		for i in range(0, self.LANES):
+			outcome.append(self.bounced[i].run(self.flag[i]))
+
+		return outcome
 	
+class bounce:
+	def __init__(self):
+		"""Debounces flags.  Prevents flags appearing and disappearing, and triggering the counter."""
+		self.curr = False
+		self.fail = 0
+		self.good = 0
+
+	def run(self,bool):
+		if bool != self.curr:
+			self.fail += 1
+			if self.fail > 3:
+				self.curr = not self.curr
+				self.fail = 0
+				self.good = 0
+		else:
+			self.good += 1
+			if self.good > 3:
+				self.fail = 0
+				self.good = 0
+
+		return self.curr

@@ -4,16 +4,7 @@
 # Declare the different libraries and what not that we might need
 import numpy as np
 import cv2
-import time
-import math
-import socket
-import sys
-from tracker import tracker
-from counter import counter
-from threading import Thread
-from ewctools import timer, adjuster
-
-if cv2.__version__ == "3.2.0":
+if cv2.__version__ != "3.2.0":
 	print("The ExpresswayCamera software was designed using OpenCV version 3.2.0.")
 	print("")
 	print "This system is running OpenCV version " + cv2.__version__ + ", which might not be supported."
@@ -22,6 +13,15 @@ if cv2.__version__ == "3.2.0":
 	print("may be unstable, or not function correctly.  In fact, I'd be surprised")
 	print("if it worked at all.")
 	print("")
+
+import time
+import math
+import socket
+import sys
+from tracker import tracker
+from counter import counter
+from threading import Thread
+from ewctools import timer, adjuster
 
 #import picamera
 #import picamera.array
@@ -46,7 +46,8 @@ class ewc:
 		#------------------------------------------------------------------------------------
 		###### ------- expresswayCamera settings ------- ######
 	
-		cfg.SV_USE_DEBUG			= True
+		cfg.SV_USE_DEBUG			= False
+		cfg.SV_DEMO					= True		# FLAG FOR PROJECT DEMONSTRATION
 		cfg.SV_TRACK				= False
 		cfg.SV_COUNT				= True
 		cfg.SV_LIVE					= False
@@ -57,7 +58,6 @@ class ewc:
 
 		# Define some flags
 		cfg.SV_FILTER_KEYPOINTS		= True
-		cfg.SV_DEMO					= True		# FLAG FOR PROJECT DEMONSTRATION
 		cfg.SV_RUN_LIVE				= False
 		cfg.SV_SEND_DATA			= True
 
@@ -108,32 +108,36 @@ class ewc:
 		
 		cfg.MAX_INT					= 255
 
+
+###### ------- expresswayCamera ------- ######
+# Main Project Class
 class expresswayCamera:
 	"""Main Class. Handles iteration over images."""
 
 	def __init__(self):
 		"""Initialize variables."""
 		# Initialise the settings object inside a list
-		print("---------------------------------------------------------------")
-		print("---------------------- Expressway Camera ----------------------")
+		print("---------------------------------------------------------------------------")
+		print("---------------------------- Expressway Camera ----------------------------")
 		print("")
 		print("A Computer Vision Project by Regan White.")
 		print("Made using Python 2.7 and OpenCV 3.2.0.")
 		print("Built and tested for Raspberry Pi v3 use on the Riverside Expressway in")
 		print("Designed for use on the Riverside Expressway in Brisbane, AUS")
-		print("---------------------------------------------------------------")
+		print("")
+		print("---------------------------------------------------------------------------")
 		print("Initializing...")
 		try:
 			print("Importing Settings...")
-			self.cfg = [ewc()]
+			self.cfg = ewc()
 		except:
 			print("Settings Import failed.  Quitting.")
 			quit()
 		# Initalize adjuster
 		self.adj = adjuster(self.cfg)
 		
-		if self.cfg[0].SV_LIVE == False:
-			print("Getting host name.")
+		if self.cfg.SV_LIVE == False:
+			print("Getting host name...")
 			name = socket.gethostname()
 
 			# Figure out the location of the video file
@@ -148,7 +152,12 @@ class expresswayCamera:
 				quit()
 
 			# Initiate our Frame Capture
-			self.frameCapture = cv2.VideoCapture(CAP_VIDEOFILE)
+			try:
+				print("Starting video capture...")
+				self.frameCapture = cv2.VideoCapture(CAP_VIDEOFILE)
+			except:
+				print("Video capture failed.  Quitting.")
+				quit()
 
 			# Get frames for initialising background models
 			success, frame = self.frameCapture.read()
@@ -158,21 +167,21 @@ class expresswayCamera:
 			self.grabber.start()
 			top, bot = self.adj.adjust(frame, resize = False)
 
-		if self.cfg[0].SV_TRACK:
+		if self.cfg.SV_TRACK:
 		# Initialize the trackers objects
 			self.top_track = tracker("Top",top)
 			self.bot_track = tracker("Bot",bot)
 
-		if self.cfg[0].SV_COUNT:
+		if self.cfg.SV_COUNT:
 		# Initialize the counters objects
-			self.top_count = counter(top, self.cfg, "Top", right = self.cfg[0].COUNT_RES, left = self.cfg[0].COUNT_RES, lr = 0.02)
-			self.bot_count = counter(bot, self.cfg, "Bot", right = self.cfg[0].COUNT_RES, left = self.cfg[0].COUNT_RES, lr = 0.02)
+			self.top_count = counter(top, self.cfg, "Top", right = self.cfg.COUNT_RES, left = self.cfg.COUNT_RES, lr = 0.02)
+			self.bot_count = counter(bot, self.cfg, "Bot", right = self.cfg.COUNT_RES, left = self.cfg.COUNT_RES, lr = 0.02)
 
 		# Initialize the counters objects
-		self.timer_root	 = timer(USE = self.cfg[0].SV_USE_DEBUG, NAME = "FPS", ROOT = True)
-		self.timer_count = timer(USE = self.cfg[0].SV_USE_DEBUG, NAME = "CPS", DISP_TIME = False, DISP_PERC = True)
-		self.timer_track = timer(USE = self.cfg[0].SV_USE_DEBUG, NAME = "TPS", DISP_TIME = False)
-		self.timer_read	 = timer(USE = self.cfg[0].SV_USE_DEBUG, NAME = "RPS", DISP_TIME = False, DISP_PERC = True)
+		self.timer_root	 = timer(USE = self.cfg.SV_USE_DEBUG, NAME = "FPS", ROOT = True)
+		self.timer_count = timer(USE = self.cfg.SV_USE_DEBUG, NAME = "CPS", DISP_TIME = False, DISP_PERC = True)
+		self.timer_track = timer(USE = self.cfg.SV_USE_DEBUG, NAME = "TPS", DISP_TIME = False)
+		self.timer_read	 = timer(USE = self.cfg.SV_USE_DEBUG, NAME = "RPS", DISP_TIME = False, DISP_PERC = True)
 
 	def loop(self):
 		"""Main loop of expresswayCam class"""
@@ -193,7 +202,7 @@ class expresswayCamera:
 			if success:
 				top, bot = self.adj.adjust(frame)
 				
-				if self.cfg[0].SV_TRACK:
+				if self.cfg.SV_TRACK:
 					self.timer_track.tik()
 
 					self.top_track.track(top)
@@ -201,11 +210,17 @@ class expresswayCamera:
 
 					self.timer_track.tok()
 
-				if self.cfg[0].SV_COUNT:
+				if self.cfg.SV_COUNT:
 					self.timer_count.tik()
 
-					self.top_count.run(top)
-					self.bot_count.run(bot)
+					tc = self.top_count.run(top)
+					bc = self.bot_count.run(bot)
+
+					if count % 100 == 0 and count > 100:
+						print("----------")
+						print(tc)
+						print(bc)
+						print("----------")
 
 					self.timer_count.tok()
 			else:
@@ -224,29 +239,26 @@ class expresswayCamera:
 		self.frameCapture.release()
 
 		# Release the frame capture and exit the function
-		self.count_runStatus = False
-		self.track_runStatus = False
 		self.frameCapture.release()
 
 	def countRoutineHandle(self):
 		"""Threaded routine for counters."""
 		while(self.count_runStatus):
 			if (self.count_readyStatus):
-				self.top_count.run(self.frame_ready[0], self.frame_ready[1])
+				self.top_count.run(self.frame_ready, self.frame_ready[1])
 
 	def countRoutineStart(self):
 		"""Start the thread for the counting routine."""
 		Thread(target = self.countRoutineHandle, args = ()).start()
 
+
+###### ------- frameGrabber ------- ######
+# Frame collection and processing class for use in live application.
 #class frameGrabber:
 #	"""Grabs frames from the piCamera."""
 	
 #	def __init__(self, sensor_mode = 6, resolution = '128x72', framerate = 30):
 #		"""Initialize variables."""
-#		# Settings initialised thanks to StackExchange post by Dave Jones on 14th December, 2016
-#		# Accessed 25/07/17
-#		# https://raspberrypi.stackexchange.com/questions/58871/pi-camera-v2-fast-full-sensor-capture-mode-with-downsampling
-
 #		# PiCamera object
 #		self.cam = picamera()
 
