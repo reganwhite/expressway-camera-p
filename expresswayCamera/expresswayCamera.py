@@ -48,8 +48,8 @@ class ewc:
 	
 		cfg.SV_USE_DEBUG			= False
 		cfg.SV_DEMO					= True		# FLAG FOR PROJECT DEMONSTRATION
-		cfg.SV_TRACK				= False
-		cfg.SV_COUNT				= True
+		cfg.SV_TRACK				= True
+		cfg.SV_COUNT				= False
 		cfg.SV_LIVE					= False
 		cfg.COUNT_RES				= 4  			# Counter resolution
 
@@ -122,8 +122,8 @@ class expresswayCamera:
 		print("")
 		print("A Computer Vision Project by Regan White.")
 		print("Made using Python 2.7 and OpenCV 3.2.0.")
-		print("Built and tested for Raspberry Pi v3 use on the Riverside Expressway in")
-		print("Designed for use on the Riverside Expressway in Brisbane, AUS")
+		print("Built and tested for the Raspberry Pi 3.")
+		print("Designed for use on the Riverside Expressway in Brisbane, Australia.")
 		print("")
 		print("---------------------------------------------------------------------------")
 		print("Initializing...")
@@ -142,7 +142,7 @@ class expresswayCamera:
 
 			# Figure out the location of the video file
 			if name == "Regan-PC":
-				CAP_VIDEOFILE = "E:/testVideoD.mp4"
+				CAP_VIDEOFILE = "E:/testVideoH.mp4"
 			elif name == "Regan-Surface":
 				CAP_VIDEOFILE = "C:/testVideoH.mp4"
 			elif name == "RWHIT-PI801":
@@ -224,6 +224,8 @@ class expresswayCamera:
 
 					self.timer_count.tok()
 			else:
+				self.top_track.close()
+				self.bot_track.close()
 				print("Looks like we've run out of frames to read.")
 				print("This is either because of an error, or because we've finished reading the file.")
 				print("Total frame count: {0:}".format(count))

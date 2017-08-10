@@ -4,11 +4,12 @@ import numpy as np
 from threading import Thread
 import requests
 import math
+import datetime
 
 
 class timer:
 	"""This is a timer used to check how things are running!  Operates over a fixed number of iterations."""
-	def __init__(self, ITERATIONS = 1000, NAME = "BLNK", DISP_RPS = False, DISP_TIME = False, DISP_PERC = False, ROOT = False, USE = True):
+	def __init__(self, ITERATIONS = 1000, NAME = "BLNK", DISP_RPS = False, DISP_TIME = False, DISP_PERC = False, ROOT = False, USE = True, WRITE = False):
 		self.USE = USE
 		if self.USE:
 			# Parse inputs
@@ -18,6 +19,16 @@ class timer:
 			self.DISP_PERC = DISP_PERC		# Do we want to display the output to console?
 			self.ITERATIONS = ITERATIONS	# How many iterations are we expecting the tik to average over?
 			self.ROOT = ROOT				# Is this the base timer?
+			self.WRITE = WRITE
+
+			if self.WRITE:
+				self.file = open("E:/ewc-debug/" + self.NAME + ".txt", "a")
+				self.file.write("------------------------------------------------\n")
+				string = datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")
+				self.file.write("Time: " + string + "\n")
+				self.file.write("Starting new test for:\n")
+				self.file.write(self.NAME + "\n")
+				self.file.write("TIME (s)\n")
 
 			# Set up name for display
 			self.NAME_FIX = "[" + self.NAME
@@ -29,6 +40,10 @@ class timer:
 
 			# Initialize counter
 			self.count = 0
+
+	def end(self):
+		if self.WRITE:
+			self.file.close()
 
 	def tik(self):
 		"""Starts the counter."""
@@ -57,6 +72,7 @@ class timer:
 					# Print the output to console
 					if self.t2 != 0:
 						print('\r{0:>12}] = {1:11.4f} s'.format(self.NAME_FIX, float(self.t2) / float(self.ITERATIONS) ))
+						
 					else:
 						print('\r{0:>12}] = {1:>12s}'.format(self.NAME_FIX, "undef s"))
 				if self.DISP_PERC:
@@ -65,6 +81,24 @@ class timer:
 					else:
 						print('\r{0:>12}] = {1:>12s} %'.format(self.NAME_FIX, "0"))
 
+				if self.WRITE:
+					write = []
+					if self.DISP_TIME:
+						write.append(str(float(self.t2) / float(self.ITERATIONS)))
+					else:
+						write.append("-")
+					#if self.DISP_PERC:
+					#	write.append(str(float(self.t2) / float(self.t_tik) * 100))
+					#else:
+					#	write.append("-")
+					#if self.DISP_RPS:
+					#	write.append(str(self.ITERATIONS / self.t2))
+					#else:
+					#	write.append("-")
+
+					string = "	".join(write)
+					self.file.write(string + "\n")
+				
 				# Reset everything
 				self.count	= 0
 				self.t2		= 0
