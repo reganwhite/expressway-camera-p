@@ -70,7 +70,7 @@ class counter:
 	def run(self, frame, SPEED = False):
 		"""Run the sensors. Takes a frame as input."""
 		# Run the updater
-		self.update(frame, SPEED)
+		self.count(frame, SPEED)
 		return self.carCounter
 
 	def push(self, frame):
@@ -97,7 +97,7 @@ class counter:
 					SPEED = self.FILTER_SPEED
 				self.LR1 = self.LR1_BASE * (float(self.FILTER_SPEED) / float(SPEED))
 
-	def update(self, frame, SPEED = False):
+	def count(self, frame, SPEED = False):
 		"""Operates the sensor instances."""
 		# Update the counter
 		self.count += 1

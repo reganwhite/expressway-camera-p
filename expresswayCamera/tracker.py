@@ -11,11 +11,11 @@ from ewctools import timer
 
 
 # Define some flags
-SV_USE_DEBUG			= True
+SV_USE_DEBUG		= True
 SV_FILTER_KEYPOINTS		= True
-SV_DEMO					= False		# FLAG FOR PROJECT DEMONSTRATION
-SV_RUN_LIVE				= False
-SV_SEND_DATA			= True
+SV_DEMO				= False		# FLAG FOR PROJECT DEMONSTRATION
+SV_RUN_LIVE			= False
+SV_SEND_DATA		= True
 
 ####### ------- COMPONENT SETTINGS ------- #######
 # Note that some of the settings may be deprecated and no longer in use.
@@ -23,46 +23,44 @@ SV_SEND_DATA			= True
 # change.
 
 # Start Delay
-SV_START_DELAY			= 100		# number of frames the sytem will process before commencing analysis
-SV_SEND_DELAY			= 1000		# number of frames the system will process before sending to server
+SV_START_DELAY		= 100		# number of frames the sytem will process before commencing analysis
+SV_SEND_DELAY		= 1000		# number of frames the system will process before sending to server
 
 # FAST (Fast Feature Detector)
-FFD_THRESHOLD			= 66
+FFD_THRESHOLD		= 66
 				# Can incremement this with fast.setThreshold
 
 # Descriptor Extractor
-ORB_NFEATURES			= 1
-ORB_SCALEFACTOR			= 1
-ORB_NLEVELS				= 1
-ORB_EDGETHRESH			= 3
-ORB_FIRSTLEVEL			= ORB_EDGETHRESH
-ORB_WTA_K				= 3
-ORB_SCORETYPE			= cv2.ORB_FAST_SCORE
+ORB_NFEATURES		= 1
+ORB_SCALEFACTOR		= 1
+ORB_NLEVELS			= 1
+ORB_EDGETHRESH		= 3
+ORB_FIRSTLEVEL		= ORB_EDGETHRESH
+ORB_WTA_K			= 3
+ORB_SCORETYPE		= cv2.ORB_FAST_SCORE
 
 # Base video input resolution
-DEF_RES_W				= 1920
-DEF_RES_H				= 1080
-IM_BIN_SIZE				= 4
+DEF_RES_W			= 1920
+DEF_RES_H			= 1080
+IM_BIN_SIZE			= 4
 
 # Define other useful variables
-_LR1					= 0.1			# Learning rate for keypoint remover
-_LR1_BASE				= 0.1
-_LR2					= 0.01			# Learning rate for Speed Updater
-_LR2_BASE				= 0.01
-_X1						= 1
-_X2						= 1360
-_Y1						= 1
-_Y2						= 1080
-_W						= np.int(np.ceil((_X2 - _X1 + 1) / IM_BIN_SIZE))
-_H						= np.int(np.ceil((_Y2 - _Y1 + 1) / IM_BIN_SIZE))
-_FPS					= float(20)			# FPS of video file if being read from a video
-_PPM_UNSCALED			= 195
-_PPM					= float( _PPM_UNSCALED / IM_BIN_SIZE / 3)	# Number of Pixels-Per-Meter
-_MPS_to_KPH				= float(3.6)				# constant
-_PixDiff				= 0.05
-_FILTER_SPEED			= 30						# max concernable filter speed in kph
-
-
+_LR1				= 0.1			# Learning rate for keypoint remover
+_LR1_BASE			= 0.1
+_LR2				= 0.01			# Learning rate for Speed Updater
+_LR2_BASE			= 0.01
+_X1					= 1
+_X2					= 1360
+_Y1					= 1
+_Y2					= 1080
+_W					= np.int(np.ceil((_X2 - _X1 + 1) / IM_BIN_SIZE))
+_H					= np.int(np.ceil((_Y2 - _Y1 + 1) / IM_BIN_SIZE))
+_FPS				= float(20)			# FPS of video file if being read from a video
+_PPM_UNSCALED		= 195
+_PPM				= float( _PPM_UNSCALED / IM_BIN_SIZE / 3)	# Number of Pixels-Per-Meter
+_MPS_to_KPH			= float(3.6)				# constant
+_PixDiff			= 0.05
+_FILTER_SPEED		= 30						# max concernable filter speed in kph
 
 ####### ------- EXPRESSWAY TRACKER MK.2 ------- #######
 class tracker:
@@ -338,12 +336,16 @@ class trackerCompute:
 		self.firstCount = True
 		self.descBruteForce = cv2.BFMatcher_create(cv2.NORM_HAMMING, crossCheck = False)
 
+		self.MASK = np.array(0, dtype=np.uint16)
+
 		self.averageSpeed = 0			# weighted average speed of vehicles
 		self.averageFrame = 9999		# weighted average pixel speed of vehicles
 		self.currentSpeed = 0			# current speed of vehicles
 		self.currentFrame = 9999		# current pixel speed of vehicles
 
-		
+		self.xO = np.array(0, dtype=np.uint16)
+		self.yO = np.array(0, dtype=np.uint16)
+
 		self.timerMatch = timer(ITERATIONS = 200, DISP_RPS = True, DISP_PERC = False, NAME = LOC + "-CLASS", ROOT = False, WRITE = False, DISP_TIME = True)
 
 
@@ -351,6 +353,12 @@ class trackerCompute:
 		"""Update historic keypoints and descriptors to reflect input."""
 		self.oldKeypoints = keypoints
 		self.oldDescripts = descriptors
+
+	def masker(self, keypoints):
+		"""Finds the mask of appropriate keypoints."""
+		self.MASK = np.zeros((20,15), dtype=np.uint16)
+
+		return mask
 
 	def run(self, keypoints, descriptors):
 		"""Run the compute class."""

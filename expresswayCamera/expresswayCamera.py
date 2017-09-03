@@ -237,6 +237,7 @@ class expresswayCamera:
 				break
 			
 			self.timer_root.tok()
+
 		# Release the frame capture and exit the function
 		self.frameCapture.release()
 
@@ -256,92 +257,92 @@ class expresswayCamera:
 
 ###### ------- frameGrabber ------- ######
 # Frame collection and processing class for use in live application.
-#class frameGrabber:
-#	"""Grabs frames from the piCamera."""
+class frameGrabber:
+	"""Grabs frames from the piCamera."""
 	
-#	def __init__(self, sensor_mode = 6, resolution = '128x72', framerate = 30):
-#		"""Initialize variables."""
-#		# PiCamera object
-#		self.cam = picamera()
+	def __init__(self, sensor_mode = 6, resolution = '128x72', framerate = 30):
+		"""Initialize variables."""
+		# PiCamera object
+		self.cam = picamera()
 
-#		# -----------------------------------------------------------------------------------
-#		# Pi Camera v2 Sensor Modes - https://i.stack.imgur.com/rHObK.jpg
-#		# -----------------------------------------------------------------------------------
-#		#	Mode	Resolution		A/R		FPS			Video	Image	FoV			Binning
-#		#	1		1920x1080		16:9	0.1-30fps	x	 			Partial		None
-#		#	2		3280x2464		4:3		0.1-15fps	x		x		Full		None
-#		#	3		3280x2464		4:3		0.1-15fps	x		x		Full		None
-#		#	4		1640x1232		4:3		0.1-40fps	x	 			Full		2x2
-#		#	5		1640x922		16:9	0.1-40fps	x	 			Full		2x2
-#		#	6		1280x720		16:9	40-90fps	x	 			Partial		2x2
-#		#	7		640x480			4:3		40-90fps	x	 			Partial		2x2
-#		# -----------------------------------------------------------------------------------
-#		self.cam.sensor_mode = sensor_mode
+		# -----------------------------------------------------------------------------------
+		# Pi Camera v2 Sensor Modes - http://traffic.regandwhite.com/include/images/PiCamera-modes.jpg
+		# -----------------------------------------------------------------------------------
+		#	Mode	Resolution		A/R		FPS			Video	Image	FoV			Binning
+		#	1		1920x1080		16:9	0.1-30fps	x	 			Partial		None
+		#	2		3280x2464		4:3		0.1-15fps	x		x		Full		None
+		#	3		3280x2464		4:3		0.1-15fps	x		x		Full		None
+		#	4		1640x1232		4:3		0.1-40fps	x	 			Full		2x2
+		#	5		1640x922		16:9	0.1-40fps	x	 			Full		2x2
+		#	6		1280x720		16:9	40-90fps	x	 			Partial		2x2
+		#	7		640x480			4:3		40-90fps	x	 			Partial		2x2
+		# -----------------------------------------------------------------------------------
+		self.cam.sensor_mode = sensor_mode
 
-#		# Other Settings
-#		self.cam.resolution = resolution	# Resolution for the Pi's GPU needs to downsample frame to
-#		self.cam.framerate = framerate			# Target framerate for the Raspberry Pi to aim for.
+		# Other Settings
+		self.cam.resolution = resolution	# Resolution for the Pi's GPU needs to downsample frame to
+		self.cam.framerate = framerate			# Target framerate for the Raspberry Pi to aim for.
 
-#		# Make our blank frame for storage
-#		self.frame_latest	= np.empty((72, 128), dtype = np.uint8)
-#		# Set up a variable for us to store the time at which the frame is pulled
-#		self.frame_time		= time.time()
+		# Make our blank frame for storage
+		self.frame_latest	= np.empty((72, 128), dtype = np.uint8)
+		# Set up a variable for us to store the time at which the frame is pulled
+		self.frame_time		= time.time()
 		
-#		# Initialize counter
-#		self.count = 0
+		# Initialize counter
+		self.count = 0
 
-#	def update(self):
-#		"""Updater for the settings which determine the Pi Camera's Operation."""
-#		# This it the groundwork for the function which will determine the operation of the Rasberry Pi camera in a number of
-#		# different environments.  For example, as the lighting conditions in the scene change so will settings such as shutter
-#		# speed and white balance, and this function will handle the configuring of those settings to ensure optimum opeartion
-#		# of the system.
-#		foo = 1
+	def update(self):
+		"""Updater for the settings which determine the Pi Camera's Operation."""
+		# This it the groundwork for the function which will determine the operation of the Rasberry Pi camera in a number of
+		# different environments.  For example, as the lighting conditions in the scene change so will settings such as shutter
+		# speed and white balance, and this function will handle the configuring of those settings to ensure optimum opeartion
+		# of the system.
+		foo = 1
 
-#	def start(self):
-#		"""Start the thread for the counting routine."""
-#		Thread(target = self.run, args = ()).start()
-#		return 1
+	def start(self):
+		"""Start the thread for the counting routine."""
+		Thread(target = self.run, args = ()).start()
+		return 1
 
-#	def run(self):
-#		"""Main loop of the frameGrabber class."""
-#		# Go to sleep to give the camera some time to warm up
-#		time.sleep(1)
+	def run(self):
+		"""Main loop of the frameGrabber class."""
+		# Go to sleep to give the camera some time to warm up
+		time.sleep(1)
 
-#		# Enter the while loop
-#		while True:
-#			self.count += 1
+		# Enter the while loop
+		while True:
+			self.count += 1
 
-#			if self.count % SV_CAM_UPDATE == 0:
-#				# Update the camera to make sure it's still running properly
-#				self.update()
+			if self.count % SV_CAM_UPDATE == 0:
+				# Update the camera to make sure it's still running properly
+				self.update()
 
-#			# Start the frame pull
-#			try:
-#				self.cam.capture(new,'bgr')		# Pull the frame from the camera
-#			except:
-#				print("Looks like something went horribly wrong with the Frame Read.")
-#				print("Complain to Regan and get him to fix this.")
+			# Start the frame pull
+			try:
+				self.cam.capture(new,'bgr')		# Pull the frame from the camera
+			except:
+				print("Looks like something went horribly wrong with the Frame Read.")
+				print("Complain to Regan and get him to fix this.")
 
-#			self.frame_time = time.time()	# Record the frame time	
-#			self.frame_latest = new.copy()	# copy it to the self.frame_latest variable
+			self.frame_time = time.time()	# Record the frame time	
+			self.frame_latest = new.copy()	# copy it to the self.frame_latest variable
 		
-#		print "Exitting frameGrabber."
+		print("Closing frameGrabber.")
 
-#	def time(self, t):
-#		"""Compares the previous frame time to the current frame time."""
-#		# Compare the times.
-#		if t == self.frame_time:
-#			return 2
-#		elif t > self.frame_time:
-#			return 3
-#		else:
-#			return 1
+	def time(self, t):
+		"""Compares the previous frame time to the current frame time."""
+		# Compare the times.
+		if t == self.frame_time:
+			return 2
+		elif t > self.frame_time:
+			return 3
+		else:
+			return 1
 
-#	def grab(self):
-#		"""Grabs the latest frame."""
-#		# Return the latest frame.
-#		return self.frame_latest
+	def grab(self):
+		"""Grabs the latest frame."""
+		# Return the latest frame.
+		return self.frame_latest
 		
 
 
