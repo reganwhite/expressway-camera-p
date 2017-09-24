@@ -257,13 +257,42 @@ class bounce:
 		self.fail = 0		# number of bad comparisons
 		self.THRESHOLD = THRESHOLD
 
-	def run(self,bool):
+		self.timeTrue = 0
+		self.timeFalse = 0
+
+		self.timePass = 0
+
+	def returnTime (self):
+		"""Returns the time it took the vehicle to throw two consecutive flags."""
+		return self.timePass
+
+	def run(self,bool, runtime = False):
 		"""Takes a boolean input, and checks against historic inputs for stability.  Returns current state."""
 		if bool != self.curr:
 		# input is different to current state
 			self.fail += 1	# increment bad comparison
 			if self.fail > self.THRESHOLD:
 			# number of bad comparisons has passed threshold, switching state
+				if not runtime:
+				# if the system is running in real time
+					# Take note of the time that the switch has occured at
+					if self.curr == False:
+						self.timeFalse = time.time()
+					else:
+						self.timeTrue = time.time()
+				else:
+				# if we are using pre-recorded frame times
+					# Take note of the time that the switch has occured at given the input time
+					if self.curr == False:
+						self.timeFalse = runtime
+					else:
+						self.timeTrue = runtime
+
+				# calculate the amount of time it took the vehicle to pass the threshold
+				# if timePass is +ve, then gap duration
+				# if			 -ve, then pass duration
+				self.timePass = self.timeFalse - self.timeTrue
+
 				self.curr = not self.curr	# switch state
 				
 				# reset counters
