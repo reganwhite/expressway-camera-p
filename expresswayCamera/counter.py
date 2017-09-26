@@ -222,20 +222,20 @@ class sensor:
 		# Update the truth for the next frame
 		self.update(frame)
 
-	def run(self, frame):
+	def run(self, frame, frametime = False):
 		"""Main function called exteriorly by the handler."""
 		cropFrame = frame[ 0:self.h, self.OFFSET:self.OFFSET + 1] # Crop the frame
 		self.compare(cropFrame) # Perform the comparison
 
 		# Return the flags thrown by the comparison
-		return self.retFlag()
+		return self.retFlag(frametime)
 
-	def retFlag(self):
+	def retFlag(self, frametime = False):
 		"""Return the current lane flags."""
 		# Compare the current frames flags to the previous frames flags
 		outcome = []
 		for i in range(0, self.LANES):
-			outcome.append(self.bounced[i].run(self.flag[i]))
+			outcome.append(self.bounced[i].run(self.flag[i], frametime))
 
 		return outcome
 
@@ -266,14 +266,14 @@ class bounce:
 		"""Returns the time it took the vehicle to throw two consecutive flags."""
 		return self.timePass
 
-	def run(self,bool, runtime = False):
+	def run(self,bool, frametime = False):
 		"""Takes a boolean input, and checks against historic inputs for stability.  Returns current state."""
 		if bool != self.curr:
 		# input is different to current state
 			self.fail += 1	# increment bad comparison
 			if self.fail > self.THRESHOLD:
 			# number of bad comparisons has passed threshold, switching state
-				if not runtime:
+				if not frametime:
 				# if the system is running in real time
 					# Take note of the time that the switch has occured at
 					if self.curr == False:
@@ -284,9 +284,9 @@ class bounce:
 				# if we are using pre-recorded frame times
 					# Take note of the time that the switch has occured at given the input time
 					if self.curr == False:
-						self.timeFalse = runtime
+						self.timeFalse = frametime
 					else:
-						self.timeTrue = runtime
+						self.timeTrue = frametime
 
 				# calculate the amount of time it took the vehicle to pass the threshold
 				# if timePass is +ve, then gap duration

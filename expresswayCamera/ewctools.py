@@ -116,7 +116,7 @@ class adjuster:
 		# Set the Y coordinate marking the centre of the road, to split the image
 		self.inboundHeight	= 422
 
-	def adjust(self, frame, crop = True, resize = True, cvt = True):
+	def adjust(self, frame, crop = True, resize = True, cvt = True, fromFile = True):
 		"""Performs intiial transformations on the frame to make it more suitable for work.
 		Takes an input of a frame."""
 		# Do some transforms.  Do in the following order because this is the fastest way
@@ -132,11 +132,16 @@ class adjuster:
 			frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)			# Convert RGB to Grayscale
 		if self.cfg.GAUSS_KSIZE != 0:
 			frame = cv2.GaussianBlur(frame, (self.cfg.GAUSS_KSIZE, self.cfg.GAUSS_KSIZE), 0)	# Perform Gaussian Blur to make things run a bit easier
-
-		# Split the road into top/bottom
-		sizeX, sizeY = frame.shape[:2]
-		frameTop = frame[0:self.inboundHeight / self.cfg.IM_BIN_SIZE - 1, 0:sizeX]
-		frameBot = frame[self.inboundHeight / self.cfg.IM_BIN_SIZE:sizeY, 0:sizeX]
+		if fromFile:
+			# Split the road into top/bottom
+			sizeX, sizeY = frame.shape[:2]
+			frameTop = frame[0:self.inboundHeight / self.cfg.IM_BIN_SIZE - 1, 0:sizeX]
+			frameBot = frame[self.inboundHeight / self.cfg.IM_BIN_SIZE:sizeY, 0:sizeX]
+		else:
+			# Split the road into top/bottom
+			sizeX, sizeY = frame.shape[:2]
+			frameTop = frame[0:self.inboundHeight / (1920 / sizeY) - 1, 0:sizeX]
+			frameBot = frame[self.inboundHeight / (1920 / sizeY):sizeY, 0:sizeX]
 
 		return frameTop, frameBot
 
@@ -232,14 +237,27 @@ class requester:
 		# Perform HTTP request
 		r = requests.get(self.urlPost1, params = {'sp':self.speedStrComb, 't':self.speedStrUNIX, 'l':self.speedStrLane, 'dir':self.target})
 		return
-
+	
 	def startPoster(self):
 		"""Starts thread for data poster."""
 		# Start thread for Poster
 		Thread(target = self.poster, args = ()).start()
 
 		return self
-	
+
+	def sendSpeed(self, speed, sendtime, speedLane, target):
+		"""Posts information to web-server at specified URL."""
+		# Perform HTTP request
+		r = requests.get(self.urlPost1, params = {'sp':speed, 't':sendtime, 'l':speedLane, 'dir':target})
+		return
+
+	def startSendSpeed(self, speed, sendtime, speedLane, target):
+		"""Starts thread for data poster."""
+		# Start thread for Poster
+		Thread(target = self.sendSpeed, args = (speed, sendtime, speedLane, target)).start()
+
+		return self
+
 	def ts_poster(self):
 		"""Posts information to the thingspeak channel."""
 		r = requests.get(self.ts_update_url, params = {'api_key':self.speedStrComb, 'field1':self.speedStrUNIX, 'field1':self.speedStrLane})

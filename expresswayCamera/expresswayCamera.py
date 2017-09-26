@@ -60,6 +60,8 @@ class ewc:
 		cfg.SV_FILTER_KEYPOINTS		= True
 		cfg.SV_RUN_LIVE				= False
 		cfg.SV_SEND_DATA			= True
+		cfg.TR_BUFFER_SIZE			= 6			# number of frames
+		cfg.SV_SLEEP_DURATION		= 15		# seconds
 
 		####### ------- COMPONENT SETTINGS
 		# Note that some of the settings may be deprecated and no longer in use.
@@ -163,8 +165,7 @@ class expresswayCamera:
 			success, frame = self.frameCapture.read()
 			top, bot = self.adj.adjust(frame)
 		else:
-			self.grabber = frameGrabber()
-			self.grabber.start()
+			self.grabber = frameGrabber(self.cfg.TR_BUFFER_SIZE)
 			top, bot = self.adj.adjust(frame, resize = False)
 
 		if self.cfg.SV_TRACK:
@@ -244,23 +245,52 @@ class expresswayCamera:
 		# Release the frame capture and exit the function
 		self.frameCapture.release()
 
-	def countRoutineHandle(self):
-		"""Threaded routine for counters."""
-		while(self.count_runStatus):
-			if (self.count_readyStatus):
-				self.top_count.run(self.frame_ready, self.frame_ready[1])
+	def loopLiveTest(self):
+		"""Main loop of expresswayCam class"""
+		# While there are still frames to be read
+		count = 0
+		float = 0
+		while 1:
+			count = count + 1
+			
+			success, frameBuffer, timeBuffer = self.grabber.runSingle()
 
-	def countRoutineStart(self):
-		"""Start the thread for the counting routine."""
-		Thread(target = self.countRoutineHandle, args = ()).start()
+			if success:
+				# Quickly reset the instances back to default settings
+				self.top_track.reset()
+				self.bot_track.reset()
 
+				# For all of the variables in the buffer
+				for i in range(0, self.cfg.TR_BUFFER_SIZE):
+					top, bot = self.adj.adjust(frame[i], crop = False, resize = False, cvt = True)
 
+					if self.cfg.SV_TRACK:
+						self.top_track.track(top, timeBuffer[i])
+						self.bot_track.track(bot, timeBuffer[i])
+
+				self.top_track.send()
+				self.bot_track.send()
+						
+			else:
+				print("Looks like we haven't got any frames to read.")
+				print("This is either because of an error, or because we've finished reading the file.")
+				print("Total loops completed: {0:}".format(count))
+				sys.exit()
+
+			# Wait for key input and exit on Q
+			key = cv2.waitKey(1) & 0xff
+			if key == ord('q'):
+				break
+
+			# Go to sleep for and wait for the next value to be read
+			time.sleep(self.cfg.SV_SLEEP_DURATION)
+			
 ###### ------- frameGrabber ------- ######
 # Frame collection and processing class for use in live application.
 class frameGrabber:
 	"""Grabs frames from the piCamera."""
 	
-	def __init__(self, sensor_mode = 6, resolution = '128x72', framerate = 30):
+	def __init__(self, sensor_mode = 6, resolution = '128x72', framerate = 30, bufferSize = 6):
 		"""Initialize variables."""
 		# PiCamera object
 		self.cam = picamera()
@@ -274,8 +304,8 @@ class frameGrabber:
 		#	3		3280x2464		4:3		0.1-15fps	x		x		Full		None
 		#	4		1640x1232		4:3		0.1-40fps	x	 			Full		2x2
 		#	5		1640x922		16:9	0.1-40fps	x	 			Full		2x2
-		#	6		1280x720		16:9	40-90fps	x	 			Partial		2x2
-		#	7		640x480			4:3		40-90fps	x	 			Partial		2x2
+		#	6		1280x720		16:9	40-90fps	x	 			Partial		2x2		<----------------
+		#	7		640x480			4:3		40-90fps	x	 			Partial		2x2		<----------------
 		# -----------------------------------------------------------------------------------
 		self.cam.sensor_mode = sensor_mode
 
@@ -291,6 +321,10 @@ class frameGrabber:
 		# Initialize counter
 		self.count = 0
 
+		self.bufferSize = bufferSize
+		self.frameBuffer = []
+		self.timeBuffer = []
+
 	def update(self):
 		"""Updater for the settings which determine the Pi Camera's Operation."""
 		# This it the groundwork for the function which will determine the operation of the Rasberry Pi camera in a number of
@@ -303,6 +337,19 @@ class frameGrabber:
 		"""Start the thread for the counting routine."""
 		Thread(target = self.run, args = ()).start()
 		return 1
+
+	def runSingle(self):
+		"""Runs a single instance of the capture loop"""
+		# Reset to blank
+		self.frameBuffer = []
+		self.timeBuffer = []
+
+		# Build the buffer
+		for i in range(0, self.bufferSize):
+			self.timeBuffer.append(time.time())	# grab the capture time)
+			self.frameBuffer.append(self.cam.capture(new,'bgr'))		# Pull the frame from the camera
+
+		return True, self.timeBuffer, self.frameBuffer
 
 	def run(self):
 		"""Main loop of the frameGrabber class."""
@@ -322,7 +369,7 @@ class frameGrabber:
 				self.cam.capture(new,'bgr')		# Pull the frame from the camera
 			except:
 				print("Looks like something went horribly wrong with the Frame Read.")
-				print("Complain to Regan and get him to fix this.")
+				sys.exit("Complain to Regan and get him to fix this.")
 
 			self.frame_time = time.time()	# Record the frame time	
 			self.frame_latest = new.copy()	# copy it to the self.frame_latest variable
@@ -347,9 +394,15 @@ class frameGrabber:
 
 
 if __name__ == '__main__':
+	# Get system parameters for initializing
+	cfg = ewc()
+
 	# Initialize the tracker object
 	main = expresswayCamera()
-	main.loop()
+	if not cfg.SV_RUN_LIVE:
+		main.loop()
+	else:
+		main.loopLiveTest
 
 	# Make sure everything is cleaned up
 	cv2.destroyAllWindows()

@@ -165,11 +165,22 @@ class tracker:
 		self.timerMatch.end()
 		self.timerBrute.end()
 
+	def reset(self):
+		"""Reset all tracking variables such that a new set of frames can be analysed."""
+		self.computeSingle.reset()	# reset the single compute object
+
+		for i in range(0,self.LANES):
+			self.compute[i].reset()	# reset the multi-lane compute object
+
+	def send(self):
+		"""Send the cyrrent average speed from the compute module to the web server."""
+		self.requester.startSendSpeed(self.computeSingle.retSpeed(), time.time(), "0|0|0|0", self.loc)
+
 	####### ------- track ------- #######
 	# Takes a frame input and finds information about it.  The Frame is
 	# input from the expresswayCam class having already been processed
 	# (cropped, resized, etc.).
-	def track(self, frame):
+	def track(self, frame, frametime = False):
 		"""Main function of Tracker class."""
 		self.count = self.count + 1 # increment the counter
 		
@@ -191,7 +202,7 @@ class tracker:
 		# processor so that it isnt trying to brute force check 500 features.
 		if self.count > SV_START_DELAY:
 			# Pass keypoints to compute class
-			current, average = self.computeSingle.run(keypointsFilt,descriptors)
+			current, average = self.computeSingle.run(keypointsFilt,descriptors, frametime)
 			
 			if SV_DEMO:	# Process the list of keypoints
 				# Generate a blank frame
@@ -327,27 +338,47 @@ class tracker:
 class trackerCompute:
 	def __init__(self, LANES = 4, LANE = 1, LOC = "Top"):
 		"""Handles the computation and comparison between descriptors in the tracker class."""
-		self.LANES = LANES
-		self.LANE = LANE
+		self.LANES = LANES	# How many lanes are there?
+		self.LANE = LANE	# Which lane is this module?
 
-		self.oldDescripts = []
-		self.oldKeypoints = []
-
-		self.firstCount = True
-		self.descBruteForce = cv2.BFMatcher_create(cv2.NORM_HAMMING, crossCheck = False)
-
-		self.MASK = np.array(0, dtype=np.uint16)
+		self.LOC = LOC	# is this the top or the bottom?
+		
+		self.firstCount = True	# Do we need to initialise values on this run?
+		
+		self.oldKeypoints = []	# historical keypoints
+		self.oldDescripts = []	# historical descriptors
 
 		self.averageSpeed = 0			# weighted average speed of vehicles
 		self.averageFrame = 9999		# weighted average pixel speed of vehicles
 		self.currentSpeed = 0			# current speed of vehicles
 		self.currentFrame = 9999		# current pixel speed of vehicles
 
+		self.lastFrameTime = 0	# when did we read the last frame?
+		
+		self.descBruteForce = cv2.BFMatcher_create(cv2.NORM_HAMMING, crossCheck = False)	# initialize matcher
+
+		# initialize match mask variables
+		self.MASK = np.array(0, dtype=np.uint16)
 		self.xO = np.array(0, dtype=np.uint16)
 		self.yO = np.array(0, dtype=np.uint16)
 
 		self.timerMatch = timer(ITERATIONS = 200, DISP_RPS = True, DISP_PERC = False, NAME = LOC + "-CLASS", ROOT = False, WRITE = False, DISP_TIME = True)
 
+	def reset(self):
+		"""Reset all tracking variables in the compute module such that a new set of frames can be analysed."""
+		self.firstCount = True	# Do we need to initialise values on this run?
+		
+		self.oldKeypoints = []	# historical keypoints
+		self.oldDescripts = []	# historical descriptors
+
+		self.averageSpeed = 0			# weighted average speed of vehicles
+		self.averageFrame = 9999		# weighted average pixel speed of vehicles
+		self.currentSpeed = 0			# current speed of vehicles
+		self.currentFrame = 9999		# current pixel speed of vehicles
+
+	def retSpeed(self):
+		"""Returns the average speed of the object"""
+		return self.averageSpeed
 
 	def update(self, keypoints, descriptors):
 		"""Update historic keypoints and descriptors to reflect input."""
@@ -360,10 +391,10 @@ class trackerCompute:
 
 		return mask
 
-	def run(self, keypoints, descriptors):
+	def run(self, keypoints, descriptors, frametime):
 		"""Run the compute class."""
 		# Get matches and process them
-		goodMatches = self.matchProcessor(self.descCompare(descriptors, type = "Standard"), keypoints)
+		goodMatches = self.matchProcessor(self.descCompare(descriptors, type = "Standard"), keypoints, frametime)
 		# Update class
 		self.update(keypoints, descriptors)
 
@@ -371,8 +402,7 @@ class trackerCompute:
 		return self.currentSpeed, self.averageSpeed
 
 	def descCompare(self, dsc, type = "Standard"):
-		"""Brute force checks for matches between two sets of descriptors.
-		Takes an input of a vector of descriptors."""
+		"""Brute force checks for matches between two sets of descriptors. Takes an input of a list of descriptors."""
 		
 		# Check to see there is actually something to compare
 		if dsc is None or self.oldDescripts is None:
@@ -384,19 +414,24 @@ class trackerCompute:
 				dsc = np.array([dsc])
 			if self.oldDescripts.ndim == 1:
 				self.oldDescripts = np.array([self.oldDescripts])
-			# Matches points from input descriptors and the previous frames descriptors
+
+			# Match points from input descriptors and the historic descriptors
 			if type == "Standard":
+			# standard matcher
 				matchedPoints = self.descBruteForce.match(self.oldDescripts, dsc)
 			elif type == "Radius":
+			# standard matcher with radius filtering
 				matchedPoints = self.descBruteForce.radiusMatch(self.oldDescripts, dsc, maxDistance = 10)
 			else:
+			# flann matcher with knn matching
 				matchedPoints = self.descFlannMatch.knnMatch(self.oldDescripts, dsc, k = 2)
+
 			return matchedPoints
 		
 	####### ------- matchProcessor ------- #######
 	# Takes matches from descCompare and processes them to find traffic
 	# parameters.  Determines vehicle speeds and other parameters.
-	def matchProcessor(self, matchedPoints, keypoints):
+	def matchProcessor(self, matchedPoints, keypoints, frametime):
 		"""Finds the distances between the different keypoints matched in the sequence.
 		Takes inputs of matchedPoints then Keypoints."""
 
@@ -446,20 +481,28 @@ class trackerCompute:
 			currentDistances = filteredDistances
 
 		# If we are running from live video
-		if SV_RUN_LIVE:
+		if frametime:
 			####### ------- PLEASE NOTE ------- #######
 			# This needs to be corrected slightly to account for the different speeds at which frames are
 			# being read when running in a live environment.  Not really sure how to approach the math for
 			# this at the time of writing.  Going to need on-site time to get it configured correctly.
 
+			# Time difference
+			tDiff = frametime - self.lastFrameTime
+
 			# Get the current frames parameters
-			self.currentFrame = (sum(currentDistances) / float(len(currentDistances))) * (1 / (self.timeFinish - self.timeStart))
-			self.currentSpeed = (self.currentFrame / _PPM) * _MPS_to_KPH
+			if len(currentDistances) is not 0:
+				# There are cars in the frame, do analysis
+				self.currentFrame = (float(sum(currentDistances)) / float(len(currentDistances)))
+				self.currentSpeed = (self.currentFrame / float(_PPM)) * float(_MPS_to_KPH) / float(tDiff)
+			else:
+				# There are no cars in the frame, carry the averag speed from previous
+				self.currentFrame = self.averageFrame
+				self.currentSpeed = self.averageSpeed
 			
 			# If this is the first time running, set initial average parameters
 			if self.firstCount:
-				self.initSpeed()
-				self.firstCount = False
+				self.initSpeed(frametime)
 
 			# Update the floating average values
 			self.averageFrame = self.averageFrame * (1 - _LR2) + self.currentFrame * _LR2
@@ -472,15 +515,14 @@ class trackerCompute:
 				# There are cars in the frame, do analysis
 				self.currentFrame = (float(sum(currentDistances)) / float(len(currentDistances)))
 				self.currentSpeed = (self.currentFrame / float(_PPM)) * float(_MPS_to_KPH) / float(1 / _FPS)
-			else: 
+			else:
 				# There are no cars in the frame, carry the averag speed from previous
 				self.currentFrame = self.averageFrame
 				self.currentSpeed = self.averageSpeed
 
 			# If this is the first time running, set initial average parameters
 			if self.firstCount:
-				self.initSpeed()
-				self.firstCount = False
+				self.initSpeed(frametime)
 
 			# Update the floating average values
 			self.averageFrame = self.averageFrame * (1 - _LR2) + self.currentFrame * _LR2
@@ -492,8 +534,13 @@ class trackerCompute:
 	####### ------- initSpeed ------- #######
 	# Runs on the first use of class.  Sets the average speed of the system
 	# to a non-zero number to allow processing to take place.
-	def initSpeed(self):
+	def initSpeed(self, frametime):
 		"""Runs on first use of the matchProcessor.  Sets the average speed of the system at tracking commencement."""
 		# Set the average to the current to get the ball rolling
 		self.averageFrame = self.currentFrame
 		self.averageSpeed = self.currentSpeed
+
+		if frametime:
+			self.lastFrameTime = frametime
+
+		self.firstCount = False
