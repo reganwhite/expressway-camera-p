@@ -380,10 +380,13 @@ class trackerCompute:
 		"""Returns the average speed of the object"""
 		return self.averageSpeed
 
-	def update(self, keypoints, descriptors):
+	def update(self, keypoints, descriptors, frametime = False):
 		"""Update historic keypoints and descriptors to reflect input."""
 		self.oldKeypoints = keypoints
 		self.oldDescripts = descriptors
+
+		if frametime:
+			self.lastFrameTime = frametime
 
 	def masker(self, keypoints):
 		"""Finds the mask of appropriate keypoints."""
@@ -396,7 +399,7 @@ class trackerCompute:
 		# Get matches and process them
 		goodMatches = self.matchProcessor(self.descCompare(descriptors, type = "Standard"), keypoints, frametime)
 		# Update class
-		self.update(keypoints, descriptors)
+		self.update(keypoints, descriptors, frametime)
 
 		# Return relevant values
 		return self.currentSpeed, self.averageSpeed
@@ -452,7 +455,7 @@ class trackerCompute:
 				dist = math.sqrt(math.pow(int(self.oldKeypoints[a].pt[1]) - int(keypoints[b].pt[1]), 2)	+ math.pow(int(self.oldKeypoints[a].pt[0]) - int(keypoints[b].pt[0]), 2))
 			
 				# if the distance between the two points is reasonable, append it
-				if dist < (self.averageFrame) * 2:
+				if dist < (self.averageFrame) * 2 & dist < (20 * 2):
 					currentDistances.append(dist)
 					goodMatches.append(matchedPoints[i])
 
@@ -482,21 +485,14 @@ class trackerCompute:
 
 		# If we are running from live video
 		if frametime:
-			####### ------- PLEASE NOTE ------- #######
-			# This needs to be corrected slightly to account for the different speeds at which frames are
-			# being read when running in a live environment.  Not really sure how to approach the math for
-			# this at the time of writing.  Going to need on-site time to get it configured correctly.
-
-			# Time difference
-			tDiff = frametime - self.lastFrameTime
-
 			# Get the current frames parameters
 			if len(currentDistances) is not 0:
+				tDiff = frametime - self.lastFrameTime # Time difference
 				# There are cars in the frame, do analysis
 				self.currentFrame = (float(sum(currentDistances)) / float(len(currentDistances)))
 				self.currentSpeed = (self.currentFrame / float(_PPM)) * float(_MPS_to_KPH) / float(tDiff)
 			else:
-				# There are no cars in the frame, carry the averag speed from previous
+				# There are no cars in the frame, carry the averagee speed from previous
 				self.currentFrame = self.averageFrame
 				self.currentSpeed = self.averageSpeed
 			
@@ -516,13 +512,13 @@ class trackerCompute:
 				self.currentFrame = (float(sum(currentDistances)) / float(len(currentDistances)))
 				self.currentSpeed = (self.currentFrame / float(_PPM)) * float(_MPS_to_KPH) / float(1 / _FPS)
 			else:
-				# There are no cars in the frame, carry the averag speed from previous
+				# There are no cars in the frame, carry the average speed from previous
 				self.currentFrame = self.averageFrame
 				self.currentSpeed = self.averageSpeed
 
 			# If this is the first time running, set initial average parameters
 			if self.firstCount:
-				self.initSpeed(frametime)
+				self.initSpeed()
 
 			# Update the floating average values
 			self.averageFrame = self.averageFrame * (1 - _LR2) + self.currentFrame * _LR2
@@ -539,8 +535,5 @@ class trackerCompute:
 		# Set the average to the current to get the ball rolling
 		self.averageFrame = self.currentFrame
 		self.averageSpeed = self.currentSpeed
-
-		if frametime:
-			self.lastFrameTime = frametime
 
 		self.firstCount = False
