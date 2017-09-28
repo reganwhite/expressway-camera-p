@@ -4,10 +4,11 @@
 # Declare the different libraries and what not that we might need
 import numpy as np
 import cv2
+print(cv2.__version__)
 if cv2.__version__ != "3.2.0":
 	print("The ExpresswayCamera software was designed using OpenCV version 3.2.0.")
 	print("")
-	print "This system is running OpenCV version " + cv2.__version__ + ", which might not be supported."
+	print("This system is running OpenCV version " + cv2.__version__ + ", which might not be supported.")
 	print("")
 	print("Be aware that if your OpenCV is not at least version 3.0.0, the system")
 	print("may be unstable, or not function correctly.  In fact, I'd be surprised")
@@ -22,6 +23,8 @@ from tracker import tracker
 from counter import counter
 from threading import Thread
 from ewctools import timer, adjuster
+import picamera
+import picamera.array
 
 #import picamera
 #import picamera.array
@@ -166,6 +169,7 @@ class expresswayCamera:
 			top, bot = self.adj.adjust(frame)
 		else:
 			self.grabber = frameGrabber(self.cfg.TR_BUFFER_SIZE)
+			frame = self.grabber.getSingle()
 			top, bot = self.adj.adjust(frame, resize = False)
 
 		if self.cfg.SV_TRACK:
@@ -338,6 +342,12 @@ class frameGrabber:
 		Thread(target = self.run, args = ()).start()
 		return 1
 
+	def getSingle(self):
+		"""Get a single frame for init."""
+		self.cam.capture(stream,'bgr')
+		cv2.imshow('Init frame',stream.array)
+		return stream.array
+
 	def runSingle(self):
 		"""Runs a single instance of the capture loop"""
 		# Reset to blank
@@ -347,7 +357,8 @@ class frameGrabber:
 		# Build the buffer
 		for i in range(0, self.bufferSize):
 			self.timeBuffer.append(time.time())	# grab the capture time)
-			self.frameBuffer.append(self.cam.capture(new,'bgr'))		# Pull the frame from the camera
+			self.cam.capture(stream,'bgr')
+			self.frameBuffer.append(stream.array)	# Pull the frame from the camera
 
 		return True, self.timeBuffer, self.frameBuffer
 
@@ -400,8 +411,10 @@ if __name__ == '__main__':
 	# Initialize the tracker object
 	main = expresswayCamera()
 	if not cfg.SV_RUN_LIVE:
+		print("Running Demo.")
 		main.loop()
 	else:
+		print("Running Live.")
 		main.loopLiveTest
 
 	# Make sure everything is cleaned up
