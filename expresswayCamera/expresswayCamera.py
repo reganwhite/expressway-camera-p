@@ -297,7 +297,7 @@ class frameGrabber:
 	def __init__(self, sensor_mode = 6, resolution = '128x72', framerate = 30, bufferSize = 6):
 		"""Initialize variables."""
 		# PiCamera object
-		self.cam = picamera()
+		self.cam = picamera.PiCamera()
 
 		# -----------------------------------------------------------------------------------
 		# Pi Camera v2 Sensor Modes - http://traffic.regandwhite.com/include/images/PiCamera-modes.jpg
@@ -358,6 +358,7 @@ class frameGrabber:
 		for i in range(0, self.bufferSize):
 			self.timeBuffer.append(time.time())	# grab the capture time)
 			self.cam.capture(stream,'bgr')
+			stream = picamera.array.PiRGBArray(self.cam)
 			self.frameBuffer.append(stream.array)	# Pull the frame from the camera
 
 		return True, self.timeBuffer, self.frameBuffer
