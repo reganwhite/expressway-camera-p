@@ -344,8 +344,8 @@ class frameGrabber:
 
 	def getSingle(self):
 		"""Get a single frame for init."""
+		stream = picamera.array.PiRGBArray(self.cam)
 		self.cam.capture(stream,'bgr')
-		cv2.imshow('Init frame',stream.array)
 		return stream.array
 
 	def runSingle(self):
@@ -357,8 +357,8 @@ class frameGrabber:
 		# Build the buffer
 		for i in range(0, self.bufferSize):
 			self.timeBuffer.append(time.time())	# grab the capture time)
-			self.cam.capture(stream,'bgr')
 			stream = picamera.array.PiRGBArray(self.cam)
+			self.cam.capture(stream,'bgr')
 			self.frameBuffer.append(stream.array)	# Pull the frame from the camera
 
 		return True, self.timeBuffer, self.frameBuffer
