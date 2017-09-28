@@ -170,7 +170,7 @@ class expresswayCamera:
 		else:
 			self.grabber = frameGrabber(self.cfg.TR_BUFFER_SIZE)
 			frame = self.grabber.getSingle()
-			top, bot = self.adj.adjust(frame, resize = False)
+			top, bot = self.adj.adjust(frame, resize = False, fromFile = False)
 
 		if self.cfg.SV_TRACK:
 		# Initialize the trackers objects
