@@ -23,8 +23,8 @@ SV_SEND_DATA		= True
 # change.
 
 # Start Delay
-SV_START_DELAY		= 100		# number of frames the sytem will process before commencing analysis
-SV_SEND_DELAY		= 1000		# number of frames the system will process before sending to server
+SV_START_DELAY		= 50		# number of frames the sytem will process before commencing analysis
+SV_SEND_DELAY		= 1		# number of frames the system will process before sending to server
 
 # FAST (Fast Feature Detector)
 FFD_THRESHOLD		= 66
@@ -42,7 +42,7 @@ ORB_SCORETYPE		= cv2.ORB_FAST_SCORE
 # Base video input resolution
 DEF_RES_W			= 1920
 DEF_RES_H			= 1080
-IM_BIN_SIZE			= 4
+IM_BIN_SIZE			= 3
 
 # Define other useful variables
 _LR1				= 0.1			# Learning rate for keypoint remover
@@ -69,6 +69,7 @@ class tracker:
 	def __init__(self, loc, frameInit):
 		"""Initialize things."""
 		# Initialise the requester
+		print(loc)
 		if loc == "Top":
 			_PPM_UNSCALED = 205
 		else:
@@ -378,7 +379,7 @@ class trackerCompute:
 
 	def retSpeed(self):
 		"""Returns the average speed of the object"""
-		return self.averageSpeed
+		return self.averageSpeed / 5
 
 	def update(self, keypoints, descriptors, frametime = False):
 		"""Update historic keypoints and descriptors to reflect input."""
@@ -455,7 +456,7 @@ class trackerCompute:
 				dist = math.sqrt(math.pow(int(self.oldKeypoints[a].pt[1]) - int(keypoints[b].pt[1]), 2)	+ math.pow(int(self.oldKeypoints[a].pt[0]) - int(keypoints[b].pt[0]), 2))
 			
 				# if the distance between the two points is reasonable, append it
-				if dist < (self.averageFrame) * 2 & dist < (20 * 2):
+				if dist < (self.averageFrame) * 2:	# & dist < (20 * 2)
 					currentDistances.append(dist)
 					goodMatches.append(matchedPoints[i])
 
@@ -491,6 +492,11 @@ class trackerCompute:
 				# There are cars in the frame, do analysis
 				self.currentFrame = (float(sum(currentDistances)) / float(len(currentDistances)))
 				self.currentSpeed = (self.currentFrame / float(_PPM)) * float(_MPS_to_KPH) / float(tDiff)
+				print("------")
+				print(self.LOC)
+				print(tDiff)
+				print(self.currentFrame)
+				print(self.currentSpeed)
 			else:
 				# There are no cars in the frame, carry the averagee speed from previous
 				self.currentFrame = self.averageFrame
@@ -499,10 +505,13 @@ class trackerCompute:
 			# If this is the first time running, set initial average parameters
 			if self.firstCount:
 				self.initSpeed(frametime)
-
+			
+			self.averageFrame += self.currentFrame
+			self.averageSpeed += self.currentSpeed
+			
 			# Update the floating average values
-			self.averageFrame = self.averageFrame * (1 - _LR2) + self.currentFrame * _LR2
-			self.averageSpeed = self.averageSpeed * (1 - _LR2) + self.currentSpeed * _LR2
+			#self.averageFrame = self.averageFrame * (1 - _LR2) + self.currentFrame * _LR2
+			#self.averageSpeed = self.averageSpeed * (1 - _LR2) + self.currentSpeed * _LR2
 						
 		# If we are running from a video file
 		else:

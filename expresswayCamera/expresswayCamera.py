@@ -16,7 +16,6 @@ if cv2.__version__ != "3.2.0":
 	print("")
 
 import time
-import math
 import socket
 import sys
 from tracker import tracker
@@ -53,7 +52,7 @@ class ewc:
 		cfg.SV_DEMO					= True		# FLAG FOR PROJECT DEMONSTRATION
 		cfg.SV_TRACK				= True
 		cfg.SV_COUNT				= False
-		cfg.SV_LIVE					= False
+		cfg.SV_LIVE					= True
 		cfg.COUNT_RES				= 4  			# Counter resolution
 
 		#------------------------------------------------------------------------------------
@@ -64,7 +63,7 @@ class ewc:
 		cfg.SV_RUN_LIVE				= False
 		cfg.SV_SEND_DATA			= True
 		cfg.TR_BUFFER_SIZE			= 6			# number of frames
-		cfg.SV_SLEEP_DURATION		= 15		# seconds
+		cfg.SV_SLEEP_DURATION		= 0.1		# seconds
 
 		####### ------- COMPONENT SETTINGS
 		# Note that some of the settings may be deprecated and no longer in use.
@@ -97,7 +96,7 @@ class ewc:
 		cfg._PPM_UNSCALED			= 195
 		cfg._PPM					= float( cfg._PPM_UNSCALED / cfg.IM_BIN_SIZE / 3)	# Number of Pixels-Per-Meter
 		cfg._MPS_to_KPH				= float(3.6)	# constant
-		cfg._PixDiff				= 0.05		# 
+		cfg._PixDiff				= 0.05		#
 		cfg._FILTER_SPEED			= 30		# max concernable filter speed in kph
 
 		#------------------------------------------------------------------------------------
@@ -170,7 +169,7 @@ class expresswayCamera:
 		else:
 			self.grabber = frameGrabber(self.cfg.TR_BUFFER_SIZE)
 			frame = self.grabber.getSingle()
-			top, bot = self.adj.adjust(frame, resize = False, fromFile = False)
+			top, bot = self.adj.adjust(frame, resize = False, fromFile = False, crop = False)
 
 		if self.cfg.SV_TRACK:
 		# Initialize the trackers objects
@@ -192,7 +191,6 @@ class expresswayCamera:
 		"""Main loop of expresswayCam class"""
 		# While there are still frames to be read
 		count = 0
-		float = 0
 		while self.frameCapture.isOpened():
 			count = count + 1
 
@@ -253,11 +251,10 @@ class expresswayCamera:
 		"""Main loop of expresswayCam class"""
 		# While there are still frames to be read
 		count = 0
-		float = 0
 		while 1:
 			count = count + 1
 			
-			success, frameBuffer, timeBuffer = self.grabber.runSingle()
+			success, timeBuffer, frameBuffer = self.grabber.runSingle()
 
 			if success:
 				# Quickly reset the instances back to default settings
@@ -265,9 +262,12 @@ class expresswayCamera:
 				self.bot_track.reset()
 
 				# For all of the variables in the buffer
+				#cv2.imshow('frame',frameBuffer[1])
 				for i in range(0, self.cfg.TR_BUFFER_SIZE):
-					top, bot = self.adj.adjust(frame[i], crop = False, resize = False, cvt = True)
-
+					top, bot = self.adj.adjust(frameBuffer[i], crop = False, resize = False, cvt = True, fromFile = False)
+					if i == 50:
+						cv2.imshow('top',top)
+						cv2.imshow('bot',bot)
 					if self.cfg.SV_TRACK:
 						self.top_track.track(top, timeBuffer[i])
 						self.bot_track.track(bot, timeBuffer[i])
@@ -294,7 +294,7 @@ class expresswayCamera:
 class frameGrabber:
 	"""Grabs frames from the piCamera."""
 	
-	def __init__(self, sensor_mode = 6, resolution = '128x72', framerate = 30, bufferSize = 6):
+	def __init__(self, sensor_mode = 7, resolution = '640x480', framerate = 30, bufferSize = 6):
 		"""Initialize variables."""
 		# PiCamera object
 		self.cam = picamera.PiCamera()
@@ -344,6 +344,7 @@ class frameGrabber:
 
 	def getSingle(self):
 		"""Get a single frame for init."""
+		time.sleep(2)
 		stream = picamera.array.PiRGBArray(self.cam)
 		self.cam.capture(stream,'bgr')
 		return stream.array
@@ -355,11 +356,12 @@ class frameGrabber:
 		self.timeBuffer = []
 
 		# Build the buffer
+		stream = picamera.array.PiRGBArray(self.cam)
 		for i in range(0, self.bufferSize):
 			self.timeBuffer.append(time.time())	# grab the capture time)
-			stream = picamera.array.PiRGBArray(self.cam)
 			self.cam.capture(stream,'bgr')
 			self.frameBuffer.append(stream.array)	# Pull the frame from the camera
+			stream.truncate(0)
 
 		return True, self.timeBuffer, self.frameBuffer
 
@@ -411,12 +413,14 @@ if __name__ == '__main__':
 
 	# Initialize the tracker object
 	main = expresswayCamera()
-	if not cfg.SV_RUN_LIVE:
-		print("Running Demo.")
-		main.loop()
-	else:
+	print("Running Live.")
+	main.loopLiveTest()
+	"""if cfg.SV_RUN_LIVE:
 		print("Running Live.")
 		main.loopLiveTest
+	else:
+		print("Running Demo.")
+		main.loop()"""
 
 	# Make sure everything is cleaned up
 	cv2.destroyAllWindows()

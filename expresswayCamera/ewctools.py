@@ -129,6 +129,7 @@ class adjuster:
 		if resize:
 			frame = cv2.resize(frame,(self.cfg._W, self.cfg._H),0,0,cv2.INTER_LINEAR)	# Resize the frame to make it more manageable - INTER_LINEAR because it's fast
 		if cvt:
+			frame = frame.astype(np.uint8)
 			frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)			# Convert RGB to Grayscale
 		if self.cfg.GAUSS_KSIZE != 0:
 			frame = cv2.GaussianBlur(frame, (self.cfg.GAUSS_KSIZE, self.cfg.GAUSS_KSIZE), 0)	# Perform Gaussian Blur to make things run a bit easier
@@ -140,8 +141,8 @@ class adjuster:
 		else:
 			# Split the road into top/bottom
 			sizeX, sizeY = frame.shape[:2]
-			frameTop = frame[0:self.inboundHeight / (1920 / sizeY) - 1, 0:sizeX]
-			frameBot = frame[self.inboundHeight / (1920 / sizeY):sizeY, 0:sizeX]
+			frameTop = frame[0:188, 0:sizeX]
+			frameBot = frame[189:sizeY, 0:sizeX]
 
 		return frameTop, frameBot
 
@@ -156,6 +157,7 @@ class requester:
 
 		# OTHER URLS
 		self.target = target
+		print(self.target)
 
 		# Initialize Variables for Speed
 		self.speedRawComb = []
@@ -175,7 +177,7 @@ class requester:
 
 		self.ts_write_key	= "1M1BZ89RA33RT2NF"
 		self.ts_read_key	= "IKS43FIAIA50VY9O"
-		self.ts_update_url	= "https://api.thingspeak.com/update"
+		self.ts_update_url= "https://api.thingspeak.com/update"
 
 
 	def dataAppend(self, avgTotalSpeed, avgLaneSpeed, type):
@@ -248,13 +250,14 @@ class requester:
 	def sendSpeed(self, speed, sendtime, speedLane, target):
 		"""Posts information to web-server at specified URL."""
 		# Perform HTTP request
+		print(speed)
 		r = requests.get(self.urlPost1, params = {'sp':speed, 't':sendtime, 'l':speedLane, 'dir':target})
 		return
 
 	def startSendSpeed(self, speed, sendtime, speedLane, target):
 		"""Starts thread for data poster."""
 		# Start thread for Poster
-		Thread(target = self.sendSpeed, args = (speed, sendtime, speedLane, target)).start()
+		Thread(target = self.sendSpeed, args = (speed, sendtime, speedLane, self.target)).start()
 
 		return self
 
