@@ -39,7 +39,6 @@ class ewc:
 		###### ------- GLOBAL settings ------- ######
 		cfg.DEF_RES_W				= 1920
 		cfg.DEF_RES_H				= 1080
-		cfg.IM_BIN_SIZE				= 4
 
 		cfg._X1						= 0
 		cfg._X2						= 1360
@@ -50,7 +49,6 @@ class ewc:
 		
 		#------------------------------------------------------------------------------------
 		###### ------- counter settings ------- ######
-
 		cfg.COUNT_RES				= 4  		# Counter resolution
 		cfg.MAX_INT					= 255
 
@@ -92,15 +90,22 @@ class ewc:
 		cfg._LR2					= 0.01		# Learning rate for Speed Updater
 		cfg._LR2_BASE				= 0.01
 		cfg._FPS					= float(30)	# FPS of video file if being read from a video
+		cfg._FG_CAMERA_MODE			= 7
+		cfg._FG_WIDTH				= 640
+		cfg._FG_HEIGHT				= 480
+		cfg._FG_RESOLUTION			= str(cfg._FG_WIDTH) + "x" + str(cfg._FG_HEIGHT)
+		cfg._FG_FRAMERATE			= 30
 		cfg._PPM_UNSCALED			= 195
-		cfg._PPM					= float( cfg._PPM_UNSCALED / cfg.IM_BIN_SIZE / 3)	# Number of Pixels-Per-Meter
+		cfg._PPM					= float(cfg._PPM_UNSCALED / cfg.IM_BIN_SIZE / 3)	# Number of Pixels-Per-Meter
 		cfg._MPS_to_KPH				= float(3.6)	# constant
 		cfg._PixDiff				= 0.05		#
 		cfg._FILTER_SPEED			= 30		# max concernable filter speed in kph
 
+		# Downsample Size
+		cfg.IM_BIN_SIZE				= cfg.DEF_RES_H / cfg._FG_HEIGHT
+
 		#------------------------------------------------------------------------------------
 		###### ------- adjuster settings ------- ######
-
 		# Gaussian Blur
 		cfg.GAUSS_KSIZE				= 0
 		cfg.GAUSS_SIGMA_X			= 0
@@ -116,13 +121,11 @@ class expresswayCamera:
 		"""Initialize variables."""
 		# Initialise the settings object inside a list
 		print("---------------------------------------------------------------------------")
-		print("---------------------------- Expressway Camera ----------------------------")
-		print("")
+		print("---------------------------- Expressway Camera ----------------------------\n")
 		print("A Computer Vision Project by Regan White.")
 		print("Made using Python 2.7.6 and OpenCV 3.2.0.")
 		print("Built and tested for the Raspberry Pi 3.")
-		print("Designed for use on the Riverside Expressway in Brisbane, Australia.")
-		print("")
+		print("Designed for use on the Riverside Expressway in Brisbane, Australia.\n")
 		print("---------------------------------------------------------------------------")
 		print("Initializing...")
 		try:
@@ -131,6 +134,9 @@ class expresswayCamera:
 		except Exception as e:
 			traceback.print_exc()
 			sys.exit("Settings Import failed. Closing.")
+
+		# Prompt user for mode selection
+		self.operationModeInit()
 
 		# Initalize adjuster
 		self.adj = adjuster(self.cfg)
@@ -163,7 +169,8 @@ class expresswayCamera:
 		else:
 			try:
 				print("Initializing PiCamera capture.")
-				self.grabber = frameGrabber(self.cfg.TR_BUFFER_SIZE)	# initialize the frame grabber object
+				self.grabber = frameGrabber(sensor_mode = self.cfg._FG_CAMERA_MODE, resolution = self.cfg._FG_RESOLUTION,
+								framerate = self.cfg._FG_FRAMERATE, bufferSize = self.cfg.TR_BUFFER_SIZE)	# initialize the frame grabber object
 			except Exception as e:
 				traceback.print_exc()
 				sys.exit("PiCamera initializing failed.")
@@ -177,8 +184,8 @@ class expresswayCamera:
 
 		if self.cfg.SV_TRACK:
 		# Initialize the trackers objects
-			self.inboundTrack = tracker("Top",inbound)	# inbound
-			self.outboundTrack = tracker("Bot",outbound)	# outbound
+			self.inboundTrack = tracker(inbound, self.cfg, "Top")	# inbound
+			self.outboundTrack = tracker(outbound, self.cfg, "Bot")	# outbound
 
 		if self.cfg.SV_COUNT:
 		# Initialize the counters objects
@@ -250,8 +257,11 @@ class expresswayCamera:
 
 	def loopLiveTest(self):
 		"""Main loop of expresswayCam class"""
-		# While there are still frames to be read
+		# Start standard operation
+		self.operationModeInit()
+
 		count = 0
+
 		while 1:
 			count = count + 1
 			
@@ -305,7 +315,27 @@ class expresswayCamera:
 
 			# Go to sleep for and wait for the next value to be read
 			time.sleep(self.cfg.SV_SLEEP_DURATION)
-			
+	
+	def operationModeInit(self):
+		"""Configure the operation mode of the Expressway Camera system."""
+		# Configure some of the operation modes
+		if self.getInputFlag("Show mode select settings ('No' will set modes to default operation)?"):
+			self.cfg.SV_RUN_LIVE = self.getInputFlag("Operate in Live Mode?")
+			self.cfg.SV_DEMO = self.getInputFlag("Operate in Demo Mode?")
+			self.cfg.SV_FILTER_KEYPOINTS = self.getInputFlag("Use keypoint filtering?")
+			self.cfg.SV_USE_DEBUG = self.getInputFlag("Run in debug mode?")
+			self.cfg.SV_TRACK = self.getInputFlag("Enable tracking?")
+			self.cfg.SV_COUNT = self.getInputFlag("Enable counting?")
+
+	def getInputFlag(self, message):
+		"""Quickly parse user input flags."""
+		while 1:
+			r = raw_input(message + " (Y/N): ")
+			if r == "y" or r == "Y" or r == "yes" or r == "Yes":
+				return True
+			elif r == "n" or r == "N" or r == "no" or r == "No":
+				return False
+
 ###### ------- frameGrabber ------- ######
 # Frame collection and processing class for use in live application.
 class frameGrabber:
@@ -320,13 +350,13 @@ class frameGrabber:
 		# Pi Camera v2 Sensor Modes - http://traffic.regandwhite.com/include/images/PiCamera-modes.jpg
 		# -----------------------------------------------------------------------------------
 		#	Mode	Resolution		A/R		FPS			Video	Image	FoV			Binning
-		#	1		1920x1080		16:9	0.1-30fps	x	 			Partial		None
+		#	1		1920x1080		16:9	0.1-30fps	x				Partial		None
 		#	2		3280x2464		4:3		0.1-15fps	x		x		Full		None
 		#	3		3280x2464		4:3		0.1-15fps	x		x		Full		None
-		#	4		1640x1232		4:3		0.1-40fps	x	 			Full		2x2
-		#	5		1640x922		16:9	0.1-40fps	x	 			Full		2x2
-		#	6		1280x720		16:9	40-90fps	x	 			Partial		2x2		<----------------
-		#	7		640x480			4:3		40-90fps	x	 			Partial		2x2		<----------------
+		#	4		1640x1232		4:3		0.1-40fps	x				Full		2x2
+		#	5		1640x922		16:9	0.1-40fps	x				Full		2x2
+		#	6		1280x720		16:9	40-90fps	x				Partial		2x2		<----------------
+		#	7		640x480			4:3		40-90fps	x				Partial		2x2		<----------------
 		# -----------------------------------------------------------------------------------
 		#
 		# We're going to use mode 7
@@ -354,7 +384,6 @@ class frameGrabber:
 		
 	def getSingle(self):
 		"""Get a single frame for init."""
-		time.sleep(2)						# take a short sleep to give the camera time to warm up
 		self.stream.truncate(0)				# reset the stream as a precautionary measure
 		self.cam.capture(self.stream,'bgr')	# use the pi camera object to capture a frame to stream in BGR colourspace
 		return self.stream.array			# return the frame array
@@ -367,14 +396,21 @@ class frameGrabber:
 		
 		self.stream.truncate(0) # reset the stream as a precautionary measure
 
+		try:
 		# Build the buffer
-		for i in range(0, self.bufferSize):
-			self.timeBuffer.append(time.time())			# take the capture time and append it to the time buffer
-			self.cam.capture(self.stream,'bgr')			# use the pi camera object to capture a frame to stream in BGR colourspace
-			self.frameBuffer.append(self.stream.array)	# pull the frame from the camera and append it to the frame buffer
-			self.stream.truncate(0)						# reset the stream
-
-		return True, self.timeBuffer, self.frameBuffer	# return the time and frame buffers
+			for i in range(0, self.bufferSize):
+				self.timeBuffer.append(time.time())			# take the capture time and append it to the time buffer
+				self.cam.capture(self.stream,'bgr')			# use the pi camera object to capture a frame to stream in BGR colourspace
+				self.frameBuffer.append(self.stream.array)	# pull the frame from the camera and append it to the frame buffer
+				self.stream.truncate(0)						# reset the stream
+		except Exception as e:
+		# Building the buffer has failed
+			traceback.print_exc()
+			print("Error getting frame buffer.")
+			return False, self.timeBuffer, self.frameBuffer
+		else:
+		# Building the buffer was successful
+			return True, self.timeBuffer, self.frameBuffer	# return the time and frame buffers
 
 if __name__ == '__main__':
 	# Get system parameters for initializing
@@ -384,10 +420,10 @@ if __name__ == '__main__':
 	main = expresswayCamera()
 
 	if cfg.SV_RUN_LIVE:
-		print("Running Live.")
-		main.loopLiveTest
+		print("Running in Live mode.")
+		main.loopLiveTest()
 	else:
-		print("Running Demo.")
+		print("Running in Test mode.")
 		main.loop()
 
 	# Make sure everything is cleaned up

@@ -66,21 +66,24 @@ _FILTER_SPEED		= 30						# max concernable filter speed in kph
 class tracker:
 	"""Class used to track vehicles."""
 
-	def __init__(self, loc, frameInit):
+	def __init__(self, frameInit, settings, loc):
 		"""Initialize things."""
-		# Initialise the requester
-		print(loc)
+
+		# import settings
+		self.cfg = settings
+
 		if loc == "Top":
-			_PPM_UNSCALED = 205
+			self.cfg._PPM_UNSCALED = float(178)
 		else:
-			_PPM_UNSCALED = 170
-			
+			self.cfg._PPM_UNSCALED = float(205)
+
+		self.cfg._PPM = float( self.cfg._PPM_UNSCALED / self.cfg.IM_BIN_SIZE / 3)
+
 		self.requester = requester('http://regandwhite.com/traffic/data/entry.php', loc)
-		_PPM = float( _PPM_UNSCALED / IM_BIN_SIZE / 3)
 		self.loc = " " + loc
 
 		# Make the fast corner detector
-		self.fast = cv2.FastFeatureDetector_create(FFD_THRESHOLD)
+		self.fast = cv2.FastFeatureDetector_create(self.cfg.FFD_THRESHOLD)
 
 		# Buffer of different kernals for transforms
 		self.kernel1 = np.ones((2,2),np.uint8)
@@ -96,12 +99,11 @@ class tracker:
 		self.baseFrame[:] = 0
 		
 		# Descriptor Extractors
-		self.descExtractor1 = cv2.ORB_create(edgeThreshold = ORB_EDGETHRESH, patchSize = ORB_EDGETHRESH,
-											WTA_K = ORB_WTA_K, scoreType = ORB_SCORETYPE)
+		self.descExtractor1 = cv2.ORB_create(edgeThreshold = self.cfg.ORB_EDGETHRESH, patchSize = self.cfg.ORB_EDGETHRESH,
+											WTA_K = self.cfg.ORB_WTA_K, scoreType = self.cfg.ORB_SCORETYPE)
 
 		# Point Matcher
 		self.descBruteForce = cv2.BFMatcher_create(cv2.NORM_HAMMING, crossCheck = False)
-		cv2.BFMatcher
 		FLANN_INDEX_LSH = 6
 		ip = dict(algorithm = FLANN_INDEX_LSH, table_number = 6, key_size = 12, multi_probe_level = 1)
 		sp = dict(checks = 10)
@@ -119,8 +121,8 @@ class tracker:
 		self.sortedDsc = [[],[],[],[]]
 		self.compute = []
 		for i in range(0,self.LANES):
-			self.compute.append(trackerCompute(LANES = 4, LANE = i))
-		self.computeSingle = trackerCompute(LANES = 1, LANE = 1, LOC = loc)
+			self.compute.append(trackerCompute(self.cfg, LANES = 4, LANE = i))
+		self.computeSingle = trackerCompute(self.cfg, LANES = 1, LANE = 1, LOC = loc)
 
 
 		# set up some timers
@@ -145,13 +147,6 @@ class tracker:
 		self.averageLaneSpeed = [ 0, 0, 0, 0 ]
 
 		self.LANES = 4
-
-		if loc == "Top":
-			_PPM = float(178)
-		else:
-			_PPM = float(205)
-
-		_PPM = float( _PPM / IM_BIN_SIZE / 3)
 
 		self.readyStatus = True
 
@@ -337,8 +332,10 @@ class tracker:
 
 
 class trackerCompute:
-	def __init__(self, LANES = 4, LANE = 1, LOC = "Top"):
+	def __init__(self, settings, LANES = 4, LANE = 1, LOC = "Top"):
 		"""Handles the computation and comparison between descriptors in the tracker class."""
+		self.cfg = settings # import settings
+		
 		self.LANES = LANES	# How many lanes are there?
 		self.LANE = LANE	# Which lane is this module?
 
@@ -491,12 +488,7 @@ class trackerCompute:
 				tDiff = frametime - self.lastFrameTime # Time difference
 				# There are cars in the frame, do analysis
 				self.currentFrame = (float(sum(currentDistances)) / float(len(currentDistances)))
-				self.currentSpeed = (self.currentFrame / float(_PPM)) * float(_MPS_to_KPH) / float(tDiff)
-				print("------")
-				print(self.LOC)
-				print(tDiff)
-				print(self.currentFrame)
-				print(self.currentSpeed)
+				self.currentSpeed = (self.currentFrame / float(self.cfg._PPM)) * float(self.cfg._MPS_to_KPH) / float(tDiff)
 			else:
 				# There are no cars in the frame, carry the averagee speed from previous
 				self.currentFrame = self.averageFrame
@@ -519,7 +511,7 @@ class trackerCompute:
 			if len(currentDistances) is not 0:
 				# There are cars in the frame, do analysis
 				self.currentFrame = (float(sum(currentDistances)) / float(len(currentDistances)))
-				self.currentSpeed = (self.currentFrame / float(_PPM)) * float(_MPS_to_KPH) / float(1 / _FPS)
+				self.currentSpeed = (self.currentFrame / float(self.cfg._PPM)) * float(self.cfg._MPS_to_KPH) / float(1 / self.cfg._FPS)
 			else:
 				# There are no cars in the frame, carry the average speed from previous
 				self.currentFrame = self.averageFrame
