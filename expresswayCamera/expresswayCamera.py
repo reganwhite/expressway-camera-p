@@ -1,12 +1,12 @@
 ###### EXPRESSWAY CAMERA ######
-# Written and built for use with Python 2.7.6 and OpenCV 3.2.0
+# Written and built for use with Python 2.7.9 and OpenCV 3.3.0
 #
 
 # Declare the different libraries and what not that we might need
 import numpy as np
 import cv2
-if cv2.__version__ != "3.2.0":
-	print("The ExpresswayCamera software was designed using OpenCV version 3.2.0.\n")
+if cv2.__version__ < "3.2.0":
+	print("The ExpresswayCamera software was designed using OpenCV version 3.3.0.\n")
 	print("This system is running with OpenCV  " + cv2.__version__ + ", which might not be supported.\n")
 	print("Be aware that if your OpenCV is not at least version 3.2.0, the system")
 	print("may be unstable, or not function correctly.")
@@ -44,8 +44,6 @@ class ewc:
 		cfg._X2						= 1360
 		cfg._Y1						= 0
 		cfg._Y2						= 1080
-		cfg._W						= np.int(np.ceil((cfg._X2 - cfg._X1) / cfg.IM_BIN_SIZE))
-		cfg._H						= np.int(np.ceil((cfg._Y2 - cfg._Y1) / cfg.IM_BIN_SIZE))
 		
 		#------------------------------------------------------------------------------------
 		###### ------- counter settings ------- ######
@@ -61,6 +59,7 @@ class ewc:
 		cfg.SV_SEND_DATA			= True
 		cfg.TR_BUFFER_SIZE			= 6			# number of frames
 		cfg.SV_SLEEP_DURATION		= 0.1		# seconds
+		cfg.SV_MULTILANE			= False		# do multilane calculations?
 
 		####### ------- COMPONENT SETTINGS
 		# Note that some of the settings may be deprecated and no longer in use.
@@ -96,13 +95,18 @@ class ewc:
 		cfg._FG_RESOLUTION			= str(cfg._FG_WIDTH) + "x" + str(cfg._FG_HEIGHT)
 		cfg._FG_FRAMERATE			= 30
 		cfg._PPM_UNSCALED			= 195
+
+		# Downsample Size
+		cfg.IM_BIN_SIZE				= cfg.DEF_RES_H / cfg._FG_HEIGHT
+
 		cfg._PPM					= float(cfg._PPM_UNSCALED / cfg.IM_BIN_SIZE / 3)	# Number of Pixels-Per-Meter
 		cfg._MPS_to_KPH				= float(3.6)	# constant
 		cfg._PixDiff				= 0.05		#
 		cfg._FILTER_SPEED			= 30		# max concernable filter speed in kph
 
-		# Downsample Size
-		cfg.IM_BIN_SIZE				= cfg.DEF_RES_H / cfg._FG_HEIGHT
+
+		cfg._W						= np.int(np.ceil((cfg._X2 - cfg._X1) / cfg.IM_BIN_SIZE))
+		cfg._H						= np.int(np.ceil((cfg._Y2 - cfg._Y1) / cfg.IM_BIN_SIZE))
 
 		#------------------------------------------------------------------------------------
 		###### ------- adjuster settings ------- ######
@@ -123,7 +127,7 @@ class expresswayCamera:
 		print("---------------------------------------------------------------------------")
 		print("---------------------------- Expressway Camera ----------------------------\n")
 		print("A Computer Vision Project by Regan White.")
-		print("Made using Python 2.7.6 and OpenCV 3.2.0.")
+		print("Made using Python 2.7.9+ and OpenCV 3.3.0.")
 		print("Built and tested for the Raspberry Pi 3.")
 		print("Designed for use on the Riverside Expressway in Brisbane, Australia.\n")
 		print("---------------------------------------------------------------------------")
@@ -134,10 +138,7 @@ class expresswayCamera:
 		except Exception as e:
 			traceback.print_exc()
 			sys.exit("Settings Import failed. Closing.")
-
-		# Prompt user for mode selection
-		self.operationModeInit()
-
+			
 		# Initalize adjuster
 		self.adj = adjuster(self.cfg)
 		
@@ -257,8 +258,6 @@ class expresswayCamera:
 
 	def loopLiveTest(self):
 		"""Main loop of expresswayCam class"""
-		# Start standard operation
-		self.operationModeInit()
 
 		count = 0
 
@@ -316,26 +315,6 @@ class expresswayCamera:
 			# Go to sleep for and wait for the next value to be read
 			time.sleep(self.cfg.SV_SLEEP_DURATION)
 	
-	def operationModeInit(self):
-		"""Configure the operation mode of the Expressway Camera system."""
-		# Configure some of the operation modes
-		if self.getInputFlag("Show mode select settings ('No' will set modes to default operation)?"):
-			self.cfg.SV_RUN_LIVE = self.getInputFlag("Operate in Live Mode?")
-			self.cfg.SV_DEMO = self.getInputFlag("Operate in Demo Mode?")
-			self.cfg.SV_FILTER_KEYPOINTS = self.getInputFlag("Use keypoint filtering?")
-			self.cfg.SV_USE_DEBUG = self.getInputFlag("Run in debug mode?")
-			self.cfg.SV_TRACK = self.getInputFlag("Enable tracking?")
-			self.cfg.SV_COUNT = self.getInputFlag("Enable counting?")
-
-	def getInputFlag(self, message):
-		"""Quickly parse user input flags."""
-		while 1:
-			r = raw_input(message + " (Y/N): ")
-			if r == "y" or r == "Y" or r == "yes" or r == "Yes":
-				return True
-			elif r == "n" or r == "N" or r == "no" or r == "No":
-				return False
-
 ###### ------- frameGrabber ------- ######
 # Frame collection and processing class for use in live application.
 class frameGrabber:
@@ -412,9 +391,33 @@ class frameGrabber:
 		# Building the buffer was successful
 			return True, self.timeBuffer, self.frameBuffer	# return the time and frame buffers
 
+
+def operationModeInit(cfg):
+	"""Configure the operation mode of the Expressway Camera system."""
+	# Configure some of the operation modes
+	if getInputFlag("Show mode select settings ('No' will set modes to default operation)?"):
+		cfg.SV_RUN_LIVE = getInputFlag("Operate in Live Mode?")
+		cfg.SV_DEMO = getInputFlag("Operate in Demo Mode?")
+		cfg.SV_FILTER_KEYPOINTS = getInputFlag("Use keypoint filtering?")
+		cfg.SV_USE_DEBUG = getInputFlag("Run in debug mode?")
+		cfg.SV_TRACK = getInputFlag("Enable tracking?")
+		cfg.SV_COUNT = getInputFlag("Enable counting?")
+
+	return cfg
+
+def getInputFlag(message):
+	"""Quickly parse user input flags."""
+	while 1:
+		r = raw_input(message + " (Y/N): ")
+		if r == "y" or r == "Y" or r == "yes" or r == "Yes":
+			return True
+		elif r == "n" or r == "N" or r == "no" or r == "No":
+			return False
+
 if __name__ == '__main__':
 	# Get system parameters for initializing
 	cfg = ewc()
+	cfg = operationModeInit(cfg)
 
 	# Initialize the tracker object
 	main = expresswayCamera()
@@ -428,3 +431,4 @@ if __name__ == '__main__':
 
 	# Make sure everything is cleaned up
 	cv2.destroyAllWindows()
+

@@ -157,7 +157,6 @@ class requester:
 
 		# OTHER URLS
 		self.target = target
-		print(self.target)
 
 		# Initialize Variables for Speed
 		self.speedRawComb = []

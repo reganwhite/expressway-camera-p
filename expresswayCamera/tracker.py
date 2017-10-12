@@ -6,61 +6,60 @@ import math
 from ewctools import requester
 import string
 import random
-# import matplotlib.pyplot as plt
 from ewctools import timer
 
 
-# Define some flags
-SV_USE_DEBUG		= True
-SV_FILTER_KEYPOINTS		= True
-SV_DEMO				= False		# FLAG FOR PROJECT DEMONSTRATION
-SV_RUN_LIVE			= False
-SV_SEND_DATA		= True
+## Define some flags
+#SV_USE_DEBUG		= True
+#SV_FILTER_KEYPOINTS		= True
+#SV_DEMO				= False		# FLAG FOR PROJECT DEMONSTRATION
+#SV_RUN_LIVE			= False
+#SV_SEND_DATA		= True
 
-####### ------- COMPONENT SETTINGS ------- #######
-# Note that some of the settings may be deprecated and no longer in use.
-# They remain listed for posterity, as how the class functions is subject to
-# change.
+######## ------- COMPONENT SETTINGS ------- #######
+## Note that some of the settings may be deprecated and no longer in use.
+## They remain listed for posterity, as how the class functions is subject to
+## change.
 
-# Start Delay
-SV_START_DELAY		= 50		# number of frames the sytem will process before commencing analysis
-SV_SEND_DELAY		= 1		# number of frames the system will process before sending to server
+## Start Delay
+#SV_START_DELAY		= 50		# number of frames the sytem will process before commencing analysis
+#SV_SEND_DELAY		= 1		# number of frames the system will process before sending to server
 
-# FAST (Fast Feature Detector)
-FFD_THRESHOLD		= 66
-				# Can incremement this with fast.setThreshold
+## FAST (Fast Feature Detector)
+#FFD_THRESHOLD		= 66
+#				# Can incremement this with fast.setThreshold
 
-# Descriptor Extractor
-ORB_NFEATURES		= 1
-ORB_SCALEFACTOR		= 1
-ORB_NLEVELS			= 1
-ORB_EDGETHRESH		= 3
-ORB_FIRSTLEVEL		= ORB_EDGETHRESH
-ORB_WTA_K			= 3
-ORB_SCORETYPE		= cv2.ORB_FAST_SCORE
+## Descriptor Extractor
+#ORB_NFEATURES		= 1
+#ORB_SCALEFACTOR		= 1
+#ORB_NLEVELS			= 1
+#ORB_EDGETHRESH		= 3
+#ORB_FIRSTLEVEL		= ORB_EDGETHRESH
+#ORB_WTA_K			= 3
+#ORB_SCORETYPE		= cv2.ORB_FAST_SCORE
 
-# Base video input resolution
-DEF_RES_W			= 1920
-DEF_RES_H			= 1080
-IM_BIN_SIZE			= 3
+## Base video input resolution
+#DEF_RES_W			= 1920
+#DEF_RES_H			= 1080
+#IM_BIN_SIZE			= 3
 
-# Define other useful variables
-_LR1				= 0.1			# Learning rate for keypoint remover
-_LR1_BASE			= 0.1
-_LR2				= 0.01			# Learning rate for Speed Updater
-_LR2_BASE			= 0.01
-_X1					= 1
-_X2					= 1360
-_Y1					= 1
-_Y2					= 1080
-_W					= np.int(np.ceil((_X2 - _X1 + 1) / IM_BIN_SIZE))
-_H					= np.int(np.ceil((_Y2 - _Y1 + 1) / IM_BIN_SIZE))
-_FPS				= float(20)			# FPS of video file if being read from a video
-_PPM_UNSCALED		= 195
-_PPM				= float( _PPM_UNSCALED / IM_BIN_SIZE / 3)	# Number of Pixels-Per-Meter
-_MPS_to_KPH			= float(3.6)				# constant
-_PixDiff			= 0.05
-_FILTER_SPEED		= 30						# max concernable filter speed in kph
+## Define other useful variables
+#_LR1				= 0.1			# Learning rate for keypoint remover
+#_LR1_BASE			= 0.1
+#_LR2				= 0.01			# Learning rate for Speed Updater
+#_LR2_BASE			= 0.01
+#_X1					= 1
+#_X2					= 1360
+#_Y1					= 1
+#_Y2					= 1080
+#_W					= np.int(np.ceil((_X2 - _X1 + 1) / IM_BIN_SIZE))
+#_H					= np.int(np.ceil((_Y2 - _Y1 + 1) / IM_BIN_SIZE))
+#_FPS				= float(20)			# FPS of video file if being read from a video
+#_PPM_UNSCALED		= 195
+#_PPM				= float( _PPM_UNSCALED / IM_BIN_SIZE / 3)	# Number of Pixels-Per-Meter
+#_MPS_to_KPH			= float(3.6)				# constant
+#_PixDiff			= 0.05
+#_FILTER_SPEED		= 30						# max concernable filter speed in kph
 
 ####### ------- EXPRESSWAY TRACKER MK.2 ------- #######
 class tracker:
@@ -149,14 +148,7 @@ class tracker:
 		self.LANES = 4
 
 		self.readyStatus = True
-
-	def run(self, frame):
-		"""Run the tracker given a frame input."""
-		if self.readyStatus == False:
-			self.track(frame)
-		else:
-			time.sleep(0.001)
-
+		
 	def close(self):
 		self.timerMatch.end()
 		self.timerBrute.end()
@@ -198,7 +190,11 @@ class tracker:
 		# processor so that it isnt trying to brute force check 500 features.
 		if self.count > SV_START_DELAY:
 			# Pass keypoints to compute class
-			current, average = self.computeSingle.run(keypointsFilt,descriptors, frametime)
+			if self.cfg.SV_MULTILANE:
+				average = self.segmenter(keypointsFilt, descriptors, frametime)
+				current, average = self.computeSingle.run(keypointsFilt,descriptors, frametime)
+			else:
+				current, average = self.computeSingle.run(keypointsFilt,descriptors, frametime)
 			
 			if SV_DEMO:	# Process the list of keypoints
 				# Generate a blank frame
@@ -275,16 +271,18 @@ class tracker:
 				
 		return newKeypoints
 
-	####### ------- keypointFilter ------- #######
+	####### ------- segmenter ------- #######
 	# Takes a keypoint and descriptor input, and segments them into groups
 	# for each lane.
-	def segmenter(self, key, dsc):
+	def segmenter(self, key, dsc, frametime):
 		"""Segments keypoints and descriptors into lane groups."""
-		self.sortedKey = [[],[],[],[]]
-		self.sortedDsc = [np.array([], dtype=np.uint8),np.array([], dtype=np.uint8),np.array([], dtype=np.uint8),np.array([], dtype=np.uint8)]
+		self.sortedKey = [[],[],[],[]]	# make blank list of lists for sorted keypoints
+		self.sortedDsc = [np.array([], dtype=np.uint8),np.array([], dtype=np.uint8),np.array([], dtype=np.uint8),np.array([], dtype=np.uint8)]	# make blank list of numpy arrays for sorted descriptors
+		# for all keypoints and descriptors
 		for i in range(0,len(dsc)):
-			y = key[i].pt[0]
+			y = key[i].pt[0]	# get y coordinate of keypoint
 			LANE = -1
+			# determine lane by the height of the keypoint
 			if y < self.height / 4:
 				LANE = 0
 			elif y >= self.height / 4 and y < self.height / 2:
@@ -293,18 +291,25 @@ class tracker:
 				LANE = 2
 			else:
 				LANE = 3
+			# append keypoint to desired lane
 			self.sortedKey[LANE].append(key[i])
+
+			# append descriptor to desired lane
 			if self.sortedDsc[LANE].size == 0:
+			# if emtpy, initialize the lane with a numpy array containing the descriptor
 				self.sortedDsc[LANE] = np.array(dsc[i], dtype=np.uint8)
 			elif self.sortedDsc[LANE].ndim == 1:
+			# if a single descriptor already exists, concatenate as list
 				self.sortedDsc[LANE] = np.concatenate(([self.sortedDsc[LANE]],[dsc[i]]), axis = 0)
 			else:
 				self.sortedDsc[LANE] = np.concatenate((self.sortedDsc[LANE],[dsc[i]]), axis = 0)
 
 		speedLane = []
 		for i in range(0, self.LANES):
-			current, average = self.compute[i].run(self.sortedKey[i],self.sortedDsc[i])
+			current, average = self.compute[i].run(self.sortedKey[i],self.sortedDsc[i], frametime)
 			speedLane.append(average)
+
+		return speedLane
 
 
 	####### ------- descFinder ------- #######
@@ -330,7 +335,7 @@ class tracker:
 			currSpeedFilt = _FILTER_SPEED
 		_LR1 = _LR1_BASE * (_FILTER_SPEED / currSpeedFilt)
 
-
+####### ------- EXPRESSWAY TRACKER COMPUTE MODULE ------- #######
 class trackerCompute:
 	def __init__(self, settings, LANES = 4, LANE = 1, LOC = "Top"):
 		"""Handles the computation and comparison between descriptors in the tracker class."""
@@ -346,10 +351,10 @@ class trackerCompute:
 		self.oldKeypoints = []	# historical keypoints
 		self.oldDescripts = []	# historical descriptors
 
-		self.averageSpeed = 0			# weighted average speed of vehicles
-		self.averageFrame = 9999		# weighted average pixel speed of vehicles
-		self.currentSpeed = 0			# current speed of vehicles
-		self.currentFrame = 9999		# current pixel speed of vehicles
+		self.averageSpeed = 0		# weighted average speed of vehicles
+		self.averageFrame = 9999	# weighted average pixel speed of vehicles
+		self.currentSpeed = 0		# current speed of vehicles
+		self.currentFrame = 9999	# current pixel speed of vehicles
 
 		self.lastFrameTime = 0	# when did we read the last frame?
 		
@@ -369,10 +374,10 @@ class trackerCompute:
 		self.oldKeypoints = []	# historical keypoints
 		self.oldDescripts = []	# historical descriptors
 
-		self.averageSpeed = 0			# weighted average speed of vehicles
-		self.averageFrame = 9999		# weighted average pixel speed of vehicles
-		self.currentSpeed = 0			# current speed of vehicles
-		self.currentFrame = 9999		# current pixel speed of vehicles
+		self.averageSpeed = 0		# weighted average speed of vehicles
+		self.averageFrame = 9999	# weighted average pixel speed of vehicles
+		self.currentSpeed = 0		# current speed of vehicles
+		self.currentFrame = 9999	# current pixel speed of vehicles
 
 	def retSpeed(self):
 		"""Returns the average speed of the object"""
