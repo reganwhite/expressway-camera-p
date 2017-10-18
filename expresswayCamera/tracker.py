@@ -172,13 +172,13 @@ class tracker:
 		"""Main function of Tracker class."""
 		self.count = self.count + 1 # increment the counter
 		
-		if SV_DEMO:
+		if self.cfg.SV_DEMO:
 			cv2.imshow('Base Frame' + self.loc, frame)
 				
 		# Run the FastFeatureDetector
 		keypoints = self.fast.detect(frame, None)
 		keypointsPreFilter = keypoints
-		if SV_FILTER_KEYPOINTS:
+		if self.cfg.SV_FILTER_KEYPOINTS:
 			# Filter out all the points we dont want
 			keypoints = self.keypointFilter(keypoints)
 					
@@ -188,7 +188,7 @@ class tracker:
 		# If the program has been running for long enough, start matching keypoints.
 		# This gives us enough time to build up a nice background model for the keypoint
 		# processor so that it isnt trying to brute force check 500 features.
-		if self.count > SV_START_DELAY:
+		if self.count > self.cfg.SV_START_DELAY:
 			# Pass keypoints to compute class
 			if self.cfg.SV_MULTILANE:
 				average = self.segmenter(keypointsFilt, descriptors, frametime)
@@ -196,7 +196,7 @@ class tracker:
 			else:
 				current, average = self.computeSingle.run(keypointsFilt,descriptors, frametime)
 			
-			if SV_DEMO:	# Process the list of keypoints
+			if self.cfg.SV_DEMO:	# Process the list of keypoints
 				# Generate a blank frame
 				blankFrame = frame.copy()
 
