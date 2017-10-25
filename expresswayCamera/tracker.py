@@ -8,59 +8,6 @@ import string
 import random
 from ewctools import timer
 
-
-## Define some flags
-#SV_USE_DEBUG		= True
-#SV_FILTER_KEYPOINTS		= True
-#SV_DEMO				= False		# FLAG FOR PROJECT DEMONSTRATION
-#SV_RUN_LIVE			= False
-#SV_SEND_DATA		= True
-
-######## ------- COMPONENT SETTINGS ------- #######
-## Note that some of the settings may be deprecated and no longer in use.
-## They remain listed for posterity, as how the class functions is subject to
-## change.
-
-## Start Delay
-#SV_START_DELAY		= 50		# number of frames the sytem will process before commencing analysis
-#SV_SEND_DELAY		= 1		# number of frames the system will process before sending to server
-
-## FAST (Fast Feature Detector)
-#FFD_THRESHOLD		= 66
-#				# Can incremement this with fast.setThreshold
-
-## Descriptor Extractor
-#ORB_NFEATURES		= 1
-#ORB_SCALEFACTOR		= 1
-#ORB_NLEVELS			= 1
-#ORB_EDGETHRESH		= 3
-#ORB_FIRSTLEVEL		= ORB_EDGETHRESH
-#ORB_WTA_K			= 3
-#ORB_SCORETYPE		= cv2.ORB_FAST_SCORE
-
-## Base video input resolution
-#DEF_RES_W			= 1920
-#DEF_RES_H			= 1080
-#IM_BIN_SIZE			= 3
-
-## Define other useful variables
-#_LR1				= 0.1			# Learning rate for keypoint remover
-#_LR1_BASE			= 0.1
-#_LR2				= 0.01			# Learning rate for Speed Updater
-#_LR2_BASE			= 0.01
-#_X1					= 1
-#_X2					= 1360
-#_Y1					= 1
-#_Y2					= 1080
-#_W					= np.int(np.ceil((_X2 - _X1 + 1) / IM_BIN_SIZE))
-#_H					= np.int(np.ceil((_Y2 - _Y1 + 1) / IM_BIN_SIZE))
-#_FPS				= float(20)			# FPS of video file if being read from a video
-#_PPM_UNSCALED		= 195
-#_PPM				= float( _PPM_UNSCALED / IM_BIN_SIZE / 3)	# Number of Pixels-Per-Meter
-#_MPS_to_KPH			= float(3.6)				# constant
-#_PixDiff			= 0.05
-#_FILTER_SPEED		= 30						# max concernable filter speed in kph
-
 ####### ------- EXPRESSWAY TRACKER MK.2 ------- #######
 class tracker:
 	"""Class used to track vehicles."""
