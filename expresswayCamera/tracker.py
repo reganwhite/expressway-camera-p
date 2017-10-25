@@ -513,25 +513,19 @@ class trackerCompute:
 			# Get the current frames parameters
 			if len(currentDistances) is not 0:
 				tDiff = frametime - self.lastFrameTime # Time difference
+				if self.lastFrameTime == 0:
+					tDiff = float(1 / self.cfg._FPS)
 				# There are cars in the frame, do analysis
 				self.currentFrame = (float(sum(currentDistances)) / float(len(currentDistances)))
 				self.currentSpeed = (self.currentFrame / float(self.cfg._PPM)) * float(self.cfg._MPS_to_KPH) / float(tDiff)
+				# If this is the first time running, set initial average parameters
+				if self.firstCount:
+					self.initSpeed(frametime)
 			else:
 				# There are no cars in the frame, carry the averagee speed from previous
 				self.currentFrame = self.averageFrame
 				self.currentSpeed = self.averageSpeed
 			
-			# If this is the first time running, set initial average parameters
-			if self.firstCount:
-				self.initSpeed(frametime)
-			
-			self.averageFrame += self.currentFrame
-			self.averageSpeed += self.currentSpeed
-			
-			# Update the floating average values
-			#self.averageFrame = self.averageFrame * (1 - _LR2) + self.currentFrame * _LR2
-			#self.averageSpeed = self.averageSpeed * (1 - _LR2) + self.currentSpeed * _LR2
-						
 		# If we are running from a video file
 		else:
 			# Get the current frames parameters
@@ -541,15 +535,15 @@ class trackerCompute:
 				self.currentSpeed = (self.currentFrame / float(self.cfg._PPM)) * float(self.cfg._MPS_to_KPH) / float(1 / self.cfg._FPS)
 				# If this is the first time running, set initial average parameters
 				if self.firstCount:
-					self.initSpeedTest()
+					self.initSpeed()
 			else:
 				# There are no cars in the frame, carry the average speed from previous
 				self.currentFrame = self.averageFrame
 				self.currentSpeed = self.averageSpeed
-				
-			# Update the floating average values
-			self.averageFrame = self.averageFrame * (1 - self.cfg._LR2) + self.currentFrame * self.cfg._LR2
-			self.averageSpeed = self.averageSpeed * (1 - self.cfg._LR2) + self.currentSpeed * self.cfg._LR2
+			
+		# Update the floating average values
+		self.averageFrame = self.averageFrame * (1 - self.cfg._LR2) + self.currentFrame * self.cfg._LR2
+		self.averageSpeed = self.averageSpeed * (1 - self.cfg._LR2) + self.currentSpeed * self.cfg._LR2
 
 		return goodMatches
 
@@ -557,18 +551,10 @@ class trackerCompute:
 	####### ------- initSpeed ------- #######
 	# Runs on the first use of class.  Sets the average speed of the system
 	# to a non-zero number to allow processing to take place.
-	def initSpeedTest(self):
+	def initSpeed(self):
 		"""Runs on first use of the matchProcessor.  Sets the average speed of the system at tracking commencement."""
 		# Set the average to the current to get the ball rolling
 		self.averageFrame = self.previousAverageFrame * (1 - self.cfg._LR2) + self.currentFrame * self.cfg._LR2
 		self.averageSpeed = self.previousAverageSpeed * (1 - self.cfg._LR2) + self.currentSpeed * self.cfg._LR2
-
-		self.firstCount = False
-
-	def initSpeed(self):
-		"""Runs on first use of the matchProcessor.  Sets the average speed of the system at tracking commencement."""
-		# Set the average to the current to get the ball rolling
-		self.averageFrame = self.currentFrame
-		self.averageSpeed = self.currentSpeed
 
 		self.firstCount = False
