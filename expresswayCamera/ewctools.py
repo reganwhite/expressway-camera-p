@@ -251,7 +251,7 @@ class requester:
 	def sendSpeed(self, speed, sendtime, speedLane, target):
 		"""Posts information to web-server at specified URL."""
 		# Perform HTTP request
-		print(speed)
+		print(str(speed) + "  " + str(speedLane))
 		r = requests.get(self.urlPost1, params = {'sp':speed, 't':sendtime, 'l':speedLane, 'dir':target})
 		return
 

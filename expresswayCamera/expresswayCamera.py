@@ -86,8 +86,8 @@ class ewc:
 		# Define other useful variables
 		cfg._LR1					= 0.1		# Learning rate for keypoint remover
 		cfg._LR1_BASE				= 0.1
-		cfg._LR2					= 0.01		# Learning rate for Speed Updater
-		cfg._LR2_BASE				= 0.01
+		cfg._LR2					= 0.05		# Learning rate for Speed Updater
+		cfg._LR2_BASE				= 0.05
 		cfg._FPS					= float(30)	# FPS of video file if being read from a video
 		cfg._FG_CAMERA_MODE			= 7
 		cfg._FG_WIDTH				= 640
@@ -137,7 +137,7 @@ class expresswayCamera:
 			self.cfg = ewc()
 		except Exception as e:
 			traceback.print_exc()
-			sys.exit("Settings Import failed. Closing.")
+			quit("Settings Import failed. Closing.")
 			
 		# Initalize adjuster
 		self.adj = adjuster(self.cfg)
@@ -154,7 +154,7 @@ class expresswayCamera:
 			elif name == "RWHIT-PI801":
 				CAP_VIDEOFILE = "testVideoH.mp4"
 			else:
-				sys.exit("Don't know what device this is running on. Closing.")
+				quit("Don't know what device this is running on. Closing.")
 
 			# Initiate our Frame Capture
 			try:
@@ -162,7 +162,7 @@ class expresswayCamera:
 				self.frameCapture = cv2.VideoCapture(CAP_VIDEOFILE)
 			except Exception as e:
 				traceback.print_exc()
-				sys.exit("Video capture failed. Closing.")
+				quit("Video capture failed. Closing.")
 
 			# Get frames for initialising background models
 			success, frame = self.frameCapture.read()
@@ -174,14 +174,14 @@ class expresswayCamera:
 								framerate = self.cfg._FG_FRAMERATE, bufferSize = self.cfg.TR_BUFFER_SIZE)	# initialize the frame grabber object
 			except Exception as e:
 				traceback.print_exc()
-				sys.exit("PiCamera initializing failed.")
+				quit("PiCamera initializing failed.")
 			
 			try:
 				frame = self.grabber.getSingle()	# get a single frame from the frame grabber for initialization
 				inbound, outbound = self.adj.adjust(frame, resize = False, fromFile = False, crop = False)	# separate our frame into inbound and outbound
 			except Exception as e:
 				traceback.print_exc()
-				sys.exit("Failed to separate input frame into inbound/outbound.")
+				quit("Failed to separate input frame into inbound/outbound.")
 
 		if self.cfg.SV_TRACK:
 		# Initialize the trackers objects
@@ -305,7 +305,7 @@ class expresswayCamera:
 				print("Looks like we haven't got any frames to read.")
 				print("This is either because of an error, or because we've finished reading the file.")
 				print("Total loops completed: {0:}".format(count))
-				sys.exit()
+				quit()
 
 			# Wait for key input and exit on Q
 			key = cv2.waitKey(1) & 0xff
