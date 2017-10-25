@@ -19,8 +19,6 @@ from tracker import tracker
 from counter import counter
 from threading import Thread
 from ewctools import timer, adjuster
-import picamera
-import picamera.array
 
 ###### ------- ewc ------- ######
 # Settings class
@@ -29,8 +27,8 @@ class ewc:
 		#------------------------------------------------------------------------------------
 		###### ------- expresswayCamera settings ------- ######
 	
-		cfg.SV_USE_DEBUG			= False
-		cfg.SV_DEMO					= False
+		cfg.SV_USE_DEBUG			= True
+		cfg.SV_DEMO					= True
 		cfg.SV_TRACK				= True
 		cfg.SV_COUNT				= False
 		cfg.SV_LIVE					= True
@@ -59,7 +57,7 @@ class ewc:
 		cfg.SV_SEND_DATA			= True
 		cfg.TR_BUFFER_SIZE			= 6			# number of frames
 		cfg.SV_SLEEP_DURATION		= 0.1		# seconds
-		cfg.SV_MULTILANE			= False		# do multilane calculations?
+		cfg.SV_MULTILANE			= True		# do multilane calculations?
 
 		####### ------- COMPONENT SETTINGS
 		# Note that some of the settings may be deprecated and no longer in use.
@@ -86,8 +84,8 @@ class ewc:
 		# Define other useful variables
 		cfg._LR1					= 0.1		# Learning rate for keypoint remover
 		cfg._LR1_BASE				= 0.1
-		cfg._LR2					= 0.01		# Learning rate for Speed Updater
-		cfg._LR2_BASE				= 0.01
+		cfg._LR2					= 0.2		# Learning rate for Speed Updater
+		cfg._LR2_BASE				= 0.2
 		cfg._FPS					= float(30)	# FPS of video file if being read from a video
 		cfg._FG_CAMERA_MODE			= 7
 		cfg._FG_WIDTH				= 640
@@ -137,7 +135,7 @@ class expresswayCamera:
 			self.cfg = ewc()
 		except Exception as e:
 			traceback.print_exc()
-			sys.exit("Settings Import failed. Closing.")
+			quit("Settings Import failed. Closing.")
 			
 		# Initalize adjuster
 		self.adj = adjuster(self.cfg)
@@ -148,13 +146,13 @@ class expresswayCamera:
 
 			# Figure out the location of the video file
 			if name == "Regan-PC":
-				CAP_VIDEOFILE = "E:/testVideoH.mp4"
+				CAP_VIDEOFILE = "E:/ewc/ewcVid3.mp4"
 			elif name == "Regan-Surface":
 				CAP_VIDEOFILE = "C:/testVideoH.mp4"
 			elif name == "RWHIT-PI801":
 				CAP_VIDEOFILE = "testVideoH.mp4"
 			else:
-				sys.exit("Don't know what device this is running on. Closing.")
+				quit("Don't know what device this is running on. Closing.")
 
 			# Initiate our Frame Capture
 			try:
@@ -162,7 +160,7 @@ class expresswayCamera:
 				self.frameCapture = cv2.VideoCapture(CAP_VIDEOFILE)
 			except Exception as e:
 				traceback.print_exc()
-				sys.exit("Video capture failed. Closing.")
+				quit("Video capture failed. Closing.")
 
 			# Get frames for initialising background models
 			success, frame = self.frameCapture.read()
@@ -174,14 +172,14 @@ class expresswayCamera:
 								framerate = self.cfg._FG_FRAMERATE, bufferSize = self.cfg.TR_BUFFER_SIZE)	# initialize the frame grabber object
 			except Exception as e:
 				traceback.print_exc()
-				sys.exit("PiCamera initializing failed.")
+				quit("PiCamera initializing failed.")
 			
 			try:
 				frame = self.grabber.getSingle()	# get a single frame from the frame grabber for initialization
 				inbound, outbound = self.adj.adjust(frame, resize = False, fromFile = False, crop = False)	# separate our frame into inbound and outbound
 			except Exception as e:
 				traceback.print_exc()
-				sys.exit("Failed to separate input frame into inbound/outbound.")
+				quit("Failed to separate input frame into inbound/outbound.")
 
 		if self.cfg.SV_TRACK:
 		# Initialize the trackers objects
@@ -268,9 +266,6 @@ class expresswayCamera:
 
 			if success:
 				# Quickly reset the instances back to default settings
-				self.inboundTrack.reset()
-				self.outboundTrack.reset()
-
 				# For all of the variables in the buffer
 				for i in range(0, self.cfg.TR_BUFFER_SIZE):
 					try:
@@ -282,13 +277,13 @@ class expresswayCamera:
 						if self.cfg.SV_TRACK:
 						# If tracking is enabled
 							try:
-								self.inboundTrack.track(inbound, timeBuffer[i]) # inbound tracker
+								self.inboundTrack.track(inbound) # inbound tracker
 							except Exception as e:
 								traceback.print_exc()
 								print("Tracking of inbound lane failed. Continuing.")
 
 							try:
-								self.outboundTrack.track(outbound, timeBuffer[i]) # outbound tracker
+								self.outboundTrack.track(outbound) # outbound tracker
 							except Exception as e:
 								traceback.print_exc()
 								print("Tracking of outbound lane failed. Continuing.")
@@ -300,12 +295,14 @@ class expresswayCamera:
 
 				self.inboundTrack.send()
 				self.outboundTrack.send()
+				self.inboundTrack.reset()
+				self.outboundTrack.reset()
 						
 			else:
 				print("Looks like we haven't got any frames to read.")
 				print("This is either because of an error, or because we've finished reading the file.")
 				print("Total loops completed: {0:}".format(count))
-				sys.exit()
+				quit()
 
 			# Wait for key input and exit on Q
 			key = cv2.waitKey(1) & 0xff
@@ -323,7 +320,7 @@ class frameGrabber:
 	def __init__(self, sensor_mode = 7, resolution = '640x480', framerate = 30, bufferSize = 6):
 		"""Initialize variables."""
 		# PiCamera object
-		self.cam = picamera.PiCamera()
+		# self.cam = picamera.PiCamera()
 
 		# -----------------------------------------------------------------------------------
 		# Pi Camera v2 Sensor Modes - http://traffic.regandwhite.com/include/images/PiCamera-modes.jpg
@@ -339,19 +336,21 @@ class frameGrabber:
 		# -----------------------------------------------------------------------------------
 		#
 		# We're going to use mode 7
-		self.cam.sensor_mode = sensor_mode
+		#self.cam.sensor_mode = sensor_mode
 
 		# Other Settings
-		self.cam.resolution = resolution # Resolution for the Pi's GPU needs to downsample frame to
-		self.cam.framerate = framerate	# Target framerate for the Raspberry Pi to aim for.
-				
+		#self.cam.resolution = resolution # Resolution for the Pi's GPU needs to downsample frame to
+		#self.cam.framerate = framerate	# Target framerate for the Raspberry Pi to aim for.
+		
+		self.frameCapture = cv2.VideoCapture("E:/ewc/ewcVid3.mp4")
+
 		self.count = 0 # Initialize counter
 
 		self.bufferSize = bufferSize # How big is the tracking modules buffer?
 		self.frameBuffer = []
 		self.timeBuffer = []
 
-		self.stream = picamera.array.PiRGBArray(self.cam)	# initialise stream object for easy frame capture into numpy array
+		#self.stream = picamera.array.PiRGBArray(self.cam)	# initialise stream object for easy frame capture into numpy array
 
 	def update(self):
 		"""Updater for the settings which determine the Pi Camera's Operation."""
@@ -363,9 +362,8 @@ class frameGrabber:
 		
 	def getSingle(self):
 		"""Get a single frame for init."""
-		self.stream.truncate(0)				# reset the stream as a precautionary measure
-		self.cam.capture(self.stream,'bgr')	# use the pi camera object to capture a frame to stream in BGR colourspace
-		return self.stream.array			# return the frame array
+		success, frame = self.frameCapture.read()
+		return frame			# return the frame array
 
 	def getBuffer(self):
 		"""Runs a single instance of the capture loop"""
@@ -373,15 +371,18 @@ class frameGrabber:
 		self.frameBuffer = []
 		self.timeBuffer = []
 		
-		self.stream.truncate(0) # reset the stream as a precautionary measure
+		for i in range(0, 300):
+			success, frame = self.frameCapture.read()
+			if not success:
+				quit("We appear to be out of frames.")
 
 		try:
 		# Build the buffer
 			for i in range(0, self.bufferSize):
 				self.timeBuffer.append(time.time())			# take the capture time and append it to the time buffer
-				self.cam.capture(self.stream,'bgr')			# use the pi camera object to capture a frame to stream in BGR colourspace
-				self.frameBuffer.append(self.stream.array)	# pull the frame from the camera and append it to the frame buffer
-				self.stream.truncate(0)						# reset the stream
+				success, frame = self.frameCapture.read()
+				self.frameBuffer.append(frame)	# pull the frame from the camera and append it to the frame buffer
+
 		except Exception as e:
 		# Building the buffer has failed
 			traceback.print_exc()
@@ -397,6 +398,7 @@ def operationModeInit(cfg):
 	# Configure some of the operation modes
 	if getInputFlag("Show mode select settings ('No' will set modes to default operation)?"):
 		cfg.SV_RUN_LIVE = getInputFlag("Operate in Live Mode?")
+		cfg.SV_LIVE = cfg.SV_RUN_LIVE
 		cfg.SV_DEMO = getInputFlag("Operate in Demo Mode?")
 		cfg.SV_FILTER_KEYPOINTS = getInputFlag("Use keypoint filtering?")
 		cfg.SV_USE_DEBUG = getInputFlag("Run in debug mode?")
@@ -422,7 +424,7 @@ if __name__ == '__main__':
 	# Initialize the tracker object
 	main = expresswayCamera()
 
-	if cfg.SV_RUN_LIVE:
+	if cfg.SV_LIVE:
 		print("Running in Live mode.")
 		main.loopLiveTest()
 	else:

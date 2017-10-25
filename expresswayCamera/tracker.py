@@ -162,7 +162,13 @@ class tracker:
 
 	def send(self):
 		"""Send the cyrrent average speed from the compute module to the web server."""
-		self.requester.startSendSpeed(self.computeSingle.retSpeed(), time.time(), "0|0|0|0", self.loc)
+		# build multilane string
+		if self.cfg.SV_MULTILANE:
+				multi = str(self.compute[0].retSpeed()) + "|" + str(self.compute[1].retSpeed()) + "|" + str(self.compute[2].retSpeed()) + "|" + str(self.compute[3].retSpeed())
+		else:
+			multi = "0|0|0|0"
+
+		self.requester.startSendSpeed(self.computeSingle.retSpeed(), time.time(), multi, self.loc)
 
 	####### ------- track ------- #######
 	# Takes a frame input and finds information about it.  The Frame is
@@ -212,11 +218,11 @@ class tracker:
 				cv2.imshow('Pre and Post Filtering of Features' + self.loc, output2)
 				
 				# Draw the matches between the two frames
-				output3 = cv2.drawMatches(self.oldFrame, self.oldKeypoints, frame, keypointsFilt, goodMatches, None,
+				output3 = cv2.drawMatches(self.oldFrame, self.oldKeypoints, frame, keypointsFilt, self.computeSingle.goodMatches, None,
 								flags = 2, singlePointColor = None, matchColor = (255, 0, 0))
 				# Draw the current average speed onto the frame
-				output3 = cv2.putText(out_img,"Speed: {0:06.2f} kph".format(self.averageSpeed),(30,30), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
-				output3 = cv2.putText(out_img,"PPM: {0:06.2f}".format(_PPM),(30,60), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
+				output3 = cv2.putText(output3,"Speed: {0:06.2f} kph".format(self.computeSingle.averageSpeed),(30,30), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
+				output3 = cv2.putText(output3,"PPM: {0:06.2f}".format(self.cfg._PPM),(30,60), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
 				cv2.imshow('Matches and Speed Output' + self.loc,output3)
 
 				# Draw static features
@@ -278,36 +284,39 @@ class tracker:
 		"""Segments keypoints and descriptors into lane groups."""
 		self.sortedKey = [[],[],[],[]]	# make blank list of lists for sorted keypoints
 		self.sortedDsc = [np.array([], dtype=np.uint8),np.array([], dtype=np.uint8),np.array([], dtype=np.uint8),np.array([], dtype=np.uint8)]	# make blank list of numpy arrays for sorted descriptors
-		# for all keypoints and descriptors
-		for i in range(0,len(dsc)):
-			y = key[i].pt[0]	# get y coordinate of keypoint
-			LANE = -1
-			# determine lane by the height of the keypoint
-			if y < self.height / 4:
-				LANE = 0
-			elif y >= self.height / 4 and y < self.height / 2:
-				LANE = 1
-			elif y >= self.height / 2 and y < (self.height / 4) * 3:
-				LANE = 2
-			else:
-				LANE = 3
-			# append keypoint to desired lane
-			self.sortedKey[LANE].append(key[i])
-
-			# append descriptor to desired lane
-			if self.sortedDsc[LANE].size == 0:
-			# if emtpy, initialize the lane with a numpy array containing the descriptor
-				self.sortedDsc[LANE] = np.array(dsc[i], dtype=np.uint8)
-			elif self.sortedDsc[LANE].ndim == 1:
-			# if a single descriptor already exists, concatenate as list
-				self.sortedDsc[LANE] = np.concatenate(([self.sortedDsc[LANE]],[dsc[i]]), axis = 0)
-			else:
-				self.sortedDsc[LANE] = np.concatenate((self.sortedDsc[LANE],[dsc[i]]), axis = 0)
-
+		
 		speedLane = []
-		for i in range(0, self.LANES):
-			current, average = self.compute[i].run(self.sortedKey[i],self.sortedDsc[i], frametime)
-			speedLane.append(average)
+			
+		# for all keypoints and descriptors
+		if dsc is not None:
+			for i in range(0,len(dsc)):
+				y = key[i].pt[0]	# get y coordinate of keypoint
+				LANE = -1
+				# determine lane by the height of the keypoint
+				if y < self.height / 4:
+					LANE = 0
+				elif y >= self.height / 4 and y < self.height / 2:
+					LANE = 1
+				elif y >= self.height / 2 and y < (self.height / 4) * 3:
+					LANE = 2
+				else:
+					LANE = 3
+				# append keypoint to desired lane
+				self.sortedKey[LANE].append(key[i])
+
+				# append descriptor to desired lane
+				if self.sortedDsc[LANE].size == 0:
+				# if emtpy, initialize the lane with a numpy array containing the descriptor
+					self.sortedDsc[LANE] = np.array(dsc[i], dtype=np.uint8)
+				elif self.sortedDsc[LANE].ndim == 1:
+				# if a single descriptor already exists, concatenate as list
+					self.sortedDsc[LANE] = np.concatenate(([self.sortedDsc[LANE]],[dsc[i]]), axis = 0)
+				else:
+					self.sortedDsc[LANE] = np.concatenate((self.sortedDsc[LANE],[dsc[i]]), axis = 0)
+
+			for i in range(0, self.LANES):
+				current, average = self.compute[i].run(self.sortedKey[i],self.sortedDsc[i], frametime)
+				speedLane.append(average)
 
 		return speedLane
 
@@ -351,6 +360,9 @@ class trackerCompute:
 		self.oldKeypoints = []	# historical keypoints
 		self.oldDescripts = []	# historical descriptors
 
+		self.previousAverageSpeed = 0	# weighted average speed of vehicles
+		self.previousAverageFrame = 0	# weighted average pixel speed of vehicles
+
 		self.averageSpeed = 0		# weighted average speed of vehicles
 		self.averageFrame = 9999	# weighted average pixel speed of vehicles
 		self.currentSpeed = 0		# current speed of vehicles
@@ -358,7 +370,7 @@ class trackerCompute:
 
 		self.lastFrameTime = 0	# when did we read the last frame?
 		
-		self.descBruteForce = cv2.BFMatcher_create(cv2.NORM_HAMMING, crossCheck = False)	# initialize matcher
+		self.descBruteForce = cv2.BFMatcher_create(cv2.NORM_HAMMING, crossCheck = True)	# initialize matcher
 
 		# initialize match mask variables
 		self.MASK = np.array(0, dtype=np.uint16)
@@ -374,14 +386,20 @@ class trackerCompute:
 		self.oldKeypoints = []	# historical keypoints
 		self.oldDescripts = []	# historical descriptors
 
+		self.previousAverageSpeed = self.averageSpeed	# weighted average speed of vehicles
+		self.previousAverageFrame = self.averageFrame	# weighted average pixel speed of vehicles
+
 		self.averageSpeed = 0		# weighted average speed of vehicles
 		self.averageFrame = 9999	# weighted average pixel speed of vehicles
 		self.currentSpeed = 0		# current speed of vehicles
 		self.currentFrame = 9999	# current pixel speed of vehicles
 
+		self.goodMatches = []
+
+
 	def retSpeed(self):
 		"""Returns the average speed of the object"""
-		return self.averageSpeed / (self.cfg.TR_BUFFER_SIZE - 1)
+		return self.averageSpeed # / (self.cfg.TR_BUFFER_SIZE - 1)
 
 	def update(self, keypoints, descriptors, frametime = False):
 		"""Update historic keypoints and descriptors to reflect input."""
@@ -400,7 +418,7 @@ class trackerCompute:
 	def run(self, keypoints, descriptors, frametime):
 		"""Run the compute class."""
 		# Get matches and process them
-		goodMatches = self.matchProcessor(self.descCompare(descriptors, type = "Standard"), keypoints, frametime)
+		self.goodMatches = self.matchProcessor(self.descCompare(descriptors, type = "Standard"), keypoints, frametime)
 		# Update class
 		self.update(keypoints, descriptors, frametime)
 
@@ -437,7 +455,7 @@ class trackerCompute:
 	####### ------- matchProcessor ------- #######
 	# Takes matches from descCompare and processes them to find traffic
 	# parameters.  Determines vehicle speeds and other parameters.
-	def matchProcessor(self, matchedPoints, keypoints, frametime):
+	def matchProcessor(self, matchedPoints, keypoints, frametime = False):
 		"""Finds the distances between the different keypoints matched in the sequence.
 		Takes inputs of matchedPoints then Keypoints."""
 
@@ -454,13 +472,17 @@ class trackerCompute:
 				a = matchedPoints[i].queryIdx	# index for "self.oldKeypoints"
 				b = matchedPoints[i].trainIdx	# index for "keypoints
 
+				yDiff = int(self.oldKeypoints[a].pt[1]) - int(keypoints[b].pt[1])
+				xDiff = int(self.oldKeypoints[a].pt[0]) - int(keypoints[b].pt[0])
+
 				# calculate the distance between the two sets of coordinates for the given index
-				dist = math.sqrt(math.pow(int(self.oldKeypoints[a].pt[1]) - int(keypoints[b].pt[1]), 2)	+ math.pow(int(self.oldKeypoints[a].pt[0]) - int(keypoints[b].pt[0]), 2))
+				dist = math.sqrt(math.pow(yDiff, 2)	+ math.pow(xDiff, 2))
 			
-				# if the distance between the two points is reasonable, append it
-				#if dist < (self.averageFrame) * 2:	# & dist < (20 * 2)  ---- CAUSES ISSUES IN LIVE OPERATION ----
-				currentDistances.append(dist)
-				goodMatches.append(matchedPoints[i])
+				if np.abs(yDiff) <= 10:
+					# if the distance between the two points is reasonable, append it
+					if dist < (40 * 2):	# and dist < (20 * 2)  ---- CAUSES ISSUES IN LIVE OPERATION ---- dist < (self.previousAverageFrame) * 1.5 and 
+						currentDistances.append(dist)
+						goodMatches.append(matchedPoints[i])
 
 		# Look over the points for similar speeds
 		if len(currentDistances) is not 0:
@@ -517,18 +539,17 @@ class trackerCompute:
 				# There are cars in the frame, do analysis
 				self.currentFrame = (float(sum(currentDistances)) / float(len(currentDistances)))
 				self.currentSpeed = (self.currentFrame / float(self.cfg._PPM)) * float(self.cfg._MPS_to_KPH) / float(1 / self.cfg._FPS)
+				# If this is the first time running, set initial average parameters
+				if self.firstCount:
+					self.initSpeedTest()
 			else:
 				# There are no cars in the frame, carry the average speed from previous
 				self.currentFrame = self.averageFrame
 				self.currentSpeed = self.averageSpeed
-
-			# If this is the first time running, set initial average parameters
-			if self.firstCount:
-				self.initSpeed()
-
+				
 			# Update the floating average values
-			self.averageFrame = self.averageFrame * (1 - _LR2) + self.currentFrame * _LR2
-			self.averageSpeed = self.averageSpeed * (1 - _LR2) + self.currentSpeed * _LR2
+			self.averageFrame = self.averageFrame * (1 - self.cfg._LR2) + self.currentFrame * self.cfg._LR2
+			self.averageSpeed = self.averageSpeed * (1 - self.cfg._LR2) + self.currentSpeed * self.cfg._LR2
 
 		return goodMatches
 
@@ -536,7 +557,15 @@ class trackerCompute:
 	####### ------- initSpeed ------- #######
 	# Runs on the first use of class.  Sets the average speed of the system
 	# to a non-zero number to allow processing to take place.
-	def initSpeed(self, frametime):
+	def initSpeedTest(self):
+		"""Runs on first use of the matchProcessor.  Sets the average speed of the system at tracking commencement."""
+		# Set the average to the current to get the ball rolling
+		self.averageFrame = self.previousAverageFrame * (1 - self.cfg._LR2) + self.currentFrame * self.cfg._LR2
+		self.averageSpeed = self.previousAverageSpeed * (1 - self.cfg._LR2) + self.currentSpeed * self.cfg._LR2
+
+		self.firstCount = False
+
+	def initSpeed(self):
 		"""Runs on first use of the matchProcessor.  Sets the average speed of the system at tracking commencement."""
 		# Set the average to the current to get the ball rolling
 		self.averageFrame = self.currentFrame
