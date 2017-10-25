@@ -30,7 +30,7 @@ class ewc:
 		###### ------- expresswayCamera settings ------- ######
 	
 		cfg.SV_USE_DEBUG			= False
-		cfg.SV_DEMO					= True
+		cfg.SV_DEMO					= False
 		cfg.SV_TRACK				= True
 		cfg.SV_COUNT				= False
 		cfg.SV_LIVE					= True

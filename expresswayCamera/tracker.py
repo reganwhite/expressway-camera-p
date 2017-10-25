@@ -246,7 +246,7 @@ class tracker:
 		newKeypoints = []
 
 		# Quickly update the entire frame based on the learning rate
-		self.baseFrame = (self.baseFrame) * (1 - _LR1 / 3)
+		self.baseFrame = (self.baseFrame) * (1 - self.cfg._LR1 / 3)
 
 		# the keypoint check
 		for i in range(0,len(keypoints)):
@@ -263,11 +263,11 @@ class tracker:
 				newKeypoints.append(keypoints[i])
 		
 			# Update points around and including the keypoint
-			self.baseFrame[pointX,pointY] = pointVal + 3 * _LR1
-			self.baseFrame[pointX + 1,pointY] = pointVal + 1 * _LR1
-			self.baseFrame[pointX - 1,pointY] = pointVal + 1 * _LR1
-			self.baseFrame[pointX,pointY + 1] = pointVal + 1 * _LR1
-			self.baseFrame[pointX,pointY - 1] = pointVal + 1 * _LR1
+			self.baseFrame[pointX,pointY] = pointVal + 3 * self.cfg._LR1
+			self.baseFrame[pointX + 1,pointY] = pointVal + 1 * self.cfg._LR1
+			self.baseFrame[pointX - 1,pointY] = pointVal + 1 * self.cfg._LR1
+			self.baseFrame[pointX,pointY + 1] = pointVal + 1 * self.cfg._LR1
+			self.baseFrame[pointX,pointY - 1] = pointVal + 1 * self.cfg._LR1
 				
 		return newKeypoints
 
@@ -331,9 +331,9 @@ class tracker:
 		"""Updates learning rates and other variables at the completion of each frame."""
 		# Update the learning rate of the keypoint filter-er
 		currSpeedFilt = self.averageSpeed
-		if currSpeedFilt > _FILTER_SPEED:
-			currSpeedFilt = _FILTER_SPEED
-		_LR1 = _LR1_BASE * (_FILTER_SPEED / currSpeedFilt)
+		if currSpeedFilt > self.cfg._FILTER_SPEED:
+			currSpeedFilt = self.cfg._FILTER_SPEED
+		self.cfg._LR1 = self.cfg._LR1_BASE * (self.cfg._FILTER_SPEED / currSpeedFilt)
 
 ####### ------- EXPRESSWAY TRACKER COMPUTE MODULE ------- #######
 class trackerCompute:
@@ -381,7 +381,7 @@ class trackerCompute:
 
 	def retSpeed(self):
 		"""Returns the average speed of the object"""
-		return self.averageSpeed / 5
+		return self.averageSpeed / (self.cfg.TR_BUFFER_SIZE - 1)
 
 	def update(self, keypoints, descriptors, frametime = False):
 		"""Update historic keypoints and descriptors to reflect input."""
@@ -458,9 +458,9 @@ class trackerCompute:
 				dist = math.sqrt(math.pow(int(self.oldKeypoints[a].pt[1]) - int(keypoints[b].pt[1]), 2)	+ math.pow(int(self.oldKeypoints[a].pt[0]) - int(keypoints[b].pt[0]), 2))
 			
 				# if the distance between the two points is reasonable, append it
-				if dist < (self.averageFrame) * 2:	# & dist < (20 * 2)
-					currentDistances.append(dist)
-					goodMatches.append(matchedPoints[i])
+				#if dist < (self.averageFrame) * 2:	# & dist < (20 * 2)  ---- CAUSES ISSUES IN LIVE OPERATION ----
+				currentDistances.append(dist)
+				goodMatches.append(matchedPoints[i])
 
 		# Look over the points for similar speeds
 		if len(currentDistances) is not 0:
@@ -477,7 +477,7 @@ class trackerCompute:
 				# Iterate over all the current elements of the filtereDistances list.
 				# If the current value matches any of them, dont include it.
 				for j in range(0, len(filteredDistances)):
-					if math.fabs(currentDistances[i] - filteredDistances[j]) < (currentDistances[i] * _PixDiff):
+					if math.fabs(currentDistances[i] - filteredDistances[j]) < (currentDistances[i] * self.cfg._PixDiff):
 						flag += 1
 				if flag is 0:
 					filteredDistances.append(currentDistances[i])

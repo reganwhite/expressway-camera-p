@@ -124,6 +124,8 @@ class adjuster:
 		#	2. Resize
 		#	3. RGB -> Greyscale
 		#	4. Blur
+		intCrop = int(220 / float(480/self.cfg._FG_HEIGHT))
+
 		if crop:
 			frame = frame[self.cfg._Y1:self.cfg._Y2, self.cfg._X1:self.cfg._X2]
 		if resize:
@@ -141,8 +143,8 @@ class adjuster:
 		else:
 			# Split the road into top/bottom
 			sizeX, sizeY = frame.shape[:2]
-			frameTop = frame[0:188, 0:sizeX]
-			frameBot = frame[189:sizeY, 0:sizeX]
+			frameTop = frame[0:intCrop, 0:sizeX]
+			frameBot = frame[intCrop + 1:sizeY, 0:sizeX]
 
 		return frameTop, frameBot
 
