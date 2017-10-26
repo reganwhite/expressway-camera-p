@@ -12,6 +12,7 @@ if cv2.__version__ < "3.2.0":
 	print("may be unstable, or not function correctly.")
 
 import time
+import datetime
 import socket
 import sys
 import traceback
@@ -29,11 +30,12 @@ class ewc:
 		#------------------------------------------------------------------------------------
 		###### ------- expresswayCamera settings ------- ######
 	
-		cfg.SV_USE_DEBUG			= False
-		cfg.SV_DEMO					= False
-		cfg.SV_TRACK				= True
-		cfg.SV_COUNT				= False
-		cfg.SV_LIVE					= True
+		cfg.SV_USE_DEBUG			= True		# Are we displaying debug information?
+		cfg.SV_DEMO					= True		# Are we running in demo mode (with imshows)?
+		cfg.SV_TRACK				= False		# Is the tracking module enabled?
+		cfg.SV_COUNT				= True		# Is the counting module enabled?
+		cfg.SV_LIVE					= True		# Are we running live or from video?
+		cfg.SV_INIT_LOOPS			= 20		# How many loops are we allowing the modules to prep for?
 
 		#------------------------------------------------------------------------------------
 		###### ------- GLOBAL settings ------- ######
@@ -49,6 +51,8 @@ class ewc:
 		###### ------- counter settings ------- ######
 		cfg.COUNT_RES				= 4  		# Counter resolution
 		cfg.MAX_INT					= 255
+		cfg.CN_BUFFER_SIZE			= 300		# number of frames
+		cfg.CN_SLEEP_DURATION		= 240		# seconds
 
 		#------------------------------------------------------------------------------------
 		###### ------- tracker settings ------- ######
@@ -58,8 +62,9 @@ class ewc:
 		cfg.SV_RUN_LIVE				= False
 		cfg.SV_SEND_DATA			= True
 		cfg.TR_BUFFER_SIZE			= 6			# number of frames
+		cfg.TR_SLEEP_DURATION		= 15		# seconds
 		cfg.SV_SLEEP_DURATION		= 0.1		# seconds
-		cfg.SV_MULTILANE			= False		# do multilane calculations?
+		cfg.SV_MULTILANE			= True		# do multilane calculations?
 
 		####### ------- COMPONENT SETTINGS
 		# Note that some of the settings may be deprecated and no longer in use.
@@ -86,8 +91,8 @@ class ewc:
 		# Define other useful variables
 		cfg._LR1					= 0.1		# Learning rate for keypoint remover
 		cfg._LR1_BASE				= 0.1
-		cfg._LR2					= 0.05		# Learning rate for Speed Updater
-		cfg._LR2_BASE				= 0.05
+		cfg._LR2					= 0.2		# Learning rate for Speed Updater
+		cfg._LR2_BASE				= 0.2
 		cfg._FPS					= float(30)	# FPS of video file if being read from a video
 		cfg._FG_CAMERA_MODE			= 7
 		cfg._FG_WIDTH				= 640
@@ -256,18 +261,20 @@ class expresswayCamera:
 		# Release the frame capture and exit the function
 		self.frameCapture.release()
 
-	def loopLiveTest(self):
+	def loopLive(self):
 		"""Main loop of expresswayCam class"""
 		count = 0
 
 		while 1:
 			count = count + 1 # Keep track of number of iterations
 			
-			if self.cfg.SV_TRACK:
+			if self.trackReady and self.cfg.SV_TRACK:
 			# If tracking is enabled
-				success, timeBuffer, frameBuffer = self.grabber.getBuffer()
+				# Get buffer of frames
+				success, timeBuffer, frameBuffer = self.grabber.getBuffer(self.cfg.TR_BUFFER_SIZE)
 
 				if success:
+				# If the frame buffer was filled successfully
 					# Quickly reset the instances back to default settings
 					self.inboundTrack.reset()
 					self.outboundTrack.reset()
@@ -279,32 +286,77 @@ class expresswayCamera:
 						except Exception as e:
 							traceback.print_exc()
 						else:
-							# Start frame processing
+						# Start frame processing
 							try:
-								self.inboundTrack.track(inbound, timeBuffer[i]) # inbound tracker
+							# INBOUND TRACKER
+								self.inboundTrack.track(inbound, timeBuffer[i])
 							except Exception as e:
 								traceback.print_exc()
 								print("Tracking of inbound lane failed. Continuing.")
 
 							try:
-								self.outboundTrack.track(outbound, timeBuffer[i]) # outbound tracker
+							# OUTBOUND TRACKER
+								self.outboundTrack.track(outbound, timeBuffer[i])
 							except Exception as e:
 								traceback.print_exc()
 								print("Tracking of outbound lane failed. Continuing.")
 
-							if self.cfg.SV_COUNT:
-							# If counting is enabled
-								self.inboundCount.count(inbound)
-								self.outboundCount.count(inbound)
-
+					# Start send threads to web server
 					self.inboundTrack.send()
 					self.outboundTrack.send()
-						
-			else:
-				print("Looks like we haven't got any frames to read.")
-				print("This is either because of an error, or because we've finished reading the file.")
-				print("Total loops completed: {0:}".format(count))
-				quit()
+
+					if count > self.cfg.SV_INIT_LOOPS:
+						# Start sleep routine to flag next runtime
+						self.trackReady = False	# set tracker ready status to false
+						Thread(target = self.trackResidentSleeper, args = ()).start()	# start thread
+
+				else:
+					print("Something went wrong with the building the frame buffer for the tracking module.")
+					print("Looks like we haven't got any frames to read.")
+					print("This is either because of an error, or because we've finished reading the file.")
+					print("Total loops completed: {0:}".format(count))
+					quit()
+
+			if self.countReady and self.cfg.SV_COUNT:
+			# If counting is enabled
+				currentTime = datetime.datetime.now()
+				if datetime.time(hour = 5) <= currentTime.time() < datetime.time(hour = 19):
+					success, timeBuffer, frameBuffer = self.grabber.getBuffer(self.cfg.CN_BUFFER_SIZE)
+
+					if success:
+					# If the frame buffer was filled successfully
+						# For all of the variables in the buffer
+						for i in range(0, self.cfg.CN_BUFFER_SIZE):
+							try:
+								inbound, outbound = self.adj.adjust(frameBuffer[i], crop = False, resize = False, cvt = True, fromFile = False) # read frame from buffer and process
+							except Exception as e:
+								traceback.print_exc()
+							else:
+								# Start frame processing
+								try:
+								# INBOUND COUNTER
+									self.inboundCount.counter(inbound)
+								except Exception as e:
+									traceback.print_exc()
+									print("Counting of inbound lane failed. Continuing.")
+
+								try:
+								# OUTBOUND COUNTER
+									self.outboundCount.counter(outbound)
+								except Exception as e:
+									traceback.print_exc()
+									print("Counting of outbound lane failed. Continuing.")
+					
+						if count > self.cfg.SV_INIT_LOOPS:
+							# Start sleep routine to flag next runtime
+							self.countReady = False	# set tracker ready status to false
+							Thread(target = self.countResidentSleeper, args = ()).start()	# start thread
+					else:
+						print("Something went wrong with the building the frame buffer for the counting module.")
+						print("Looks like we haven't got any frames to read.")
+						print("This is either because of an error, or because we've finished reading the file.")
+						print("Total loops completed: {0:}".format(count))
+						quit()
 
 			# Wait for key input and exit on Q
 			key = cv2.waitKey(1) & 0xff
@@ -313,6 +365,16 @@ class expresswayCamera:
 
 			# Go to sleep for and wait for the next value to be read
 			time.sleep(self.cfg.SV_SLEEP_DURATION)
+
+	def trackResidentSleeper(self):
+		"""Threaded routine to determine when it is time to run the tracker again."""
+		time.sleep(self.cfg.TR_SLEEP_DURATION)
+		self.trackReady = True
+
+	def countResidentSleeper(self):
+		"""Threaded routine to determine when it is time to run the counter again."""
+		time.sleep(self.cfg.CN_SLEEP_DURATION)
+		self.countReady = True
 	
 ###### ------- frameGrabber ------- ######
 # Frame collection and processing class for use in live application.
@@ -366,7 +428,7 @@ class frameGrabber:
 		self.cam.capture(self.stream,'bgr')	# use the pi camera object to capture a frame to stream in BGR colourspace
 		return self.stream.array			# return the frame array
 
-	def getBuffer(self):
+	def getBuffer(self, count):
 		"""Runs a single instance of the capture loop"""
 		# Reset buffers
 		self.frameBuffer = []
@@ -376,16 +438,18 @@ class frameGrabber:
 
 		try:
 		# Build the buffer
-			for i in range(0, self.bufferSize):
+			for i in range(0, count):
 				self.timeBuffer.append(time.time())			# take the capture time and append it to the time buffer
 				self.cam.capture(self.stream,'bgr')			# use the pi camera object to capture a frame to stream in BGR colourspace
 				self.frameBuffer.append(self.stream.array)	# pull the frame from the camera and append it to the frame buffer
 				self.stream.truncate(0)						# reset the stream
+
 		except Exception as e:
 		# Building the buffer has failed
 			traceback.print_exc()
 			print("Error getting frame buffer.")
 			return False, self.timeBuffer, self.frameBuffer
+
 		else:
 		# Building the buffer was successful
 			return True, self.timeBuffer, self.frameBuffer	# return the time and frame buffers
@@ -421,13 +485,12 @@ if __name__ == '__main__':
 	# Initialize the tracker object
 	main = expresswayCamera()
 
-	if cfg.SV_RUN_LIVE:
+	if cfg.SV_LIVE:
 		print("Running in Live mode.")
-		main.loopLiveTest()
+		main.loopLive()
 	else:
 		print("Running in Test mode.")
 		main.loop()
 
 	# Make sure everything is cleaned up
 	cv2.destroyAllWindows()
-

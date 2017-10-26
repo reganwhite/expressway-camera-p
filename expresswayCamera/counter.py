@@ -56,6 +56,8 @@ class counter:
 		# Is this the top or bottom traffic?
 		self.loc = " " + loc
 
+		self.count = 0
+
 		# Populate the lists with instances of "sensor"
 		for i in range(0, self.left):
 			self.sensor_l.append(sensor(self.OFFSET + (float(i) * float(self.width) / self.SPACE), self.LR1, frame))
@@ -97,7 +99,7 @@ class counter:
 					SPEED = self.FILTER_SPEED
 				self.LR1 = self.LR1_BASE * (float(self.FILTER_SPEED) / float(SPEED))
 
-	def count(self, frame, SPEED = False):
+	def counter(self, frame, SPEED = False):
 		"""Operates the sensor instances."""
 		# Update the counter
 		self.count += 1
