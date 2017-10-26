@@ -258,29 +258,28 @@ class expresswayCamera:
 
 	def loopLiveTest(self):
 		"""Main loop of expresswayCam class"""
-
 		count = 0
 
 		while 1:
-			count = count + 1
+			count = count + 1 # Keep track of number of iterations
 			
-			success, timeBuffer, frameBuffer = self.grabber.getBuffer()
+			if self.cfg.SV_TRACK:
+			# If tracking is enabled
+				success, timeBuffer, frameBuffer = self.grabber.getBuffer()
 
-			if success:
-				# Quickly reset the instances back to default settings
-				self.inboundTrack.reset()
-				self.outboundTrack.reset()
+				if success:
+					# Quickly reset the instances back to default settings
+					self.inboundTrack.reset()
+					self.outboundTrack.reset()
 
-				# For all of the variables in the buffer
-				for i in range(0, self.cfg.TR_BUFFER_SIZE):
-					try:
-						inbound, outbound = self.adj.adjust(frameBuffer[i], crop = False, resize = False, cvt = True, fromFile = False) # read frame from buffer and process
-					except Exception as e:
-						traceback.print_exc()
-					else:
-						# Start frame processing
-						if self.cfg.SV_TRACK:
-						# If tracking is enabled
+					# For all of the variables in the buffer
+					for i in range(0, self.cfg.TR_BUFFER_SIZE):
+						try:
+							inbound, outbound = self.adj.adjust(frameBuffer[i], crop = False, resize = False, cvt = True, fromFile = False) # read frame from buffer and process
+						except Exception as e:
+							traceback.print_exc()
+						else:
+							# Start frame processing
 							try:
 								self.inboundTrack.track(inbound, timeBuffer[i]) # inbound tracker
 							except Exception as e:
@@ -293,13 +292,13 @@ class expresswayCamera:
 								traceback.print_exc()
 								print("Tracking of outbound lane failed. Continuing.")
 
-						if self.cfg.SV_COUNT:
-						# If counting is enabled
-							self.inboundCount.count(inbound)
-							self.outboundCount.count(inbound)
+							if self.cfg.SV_COUNT:
+							# If counting is enabled
+								self.inboundCount.count(inbound)
+								self.outboundCount.count(inbound)
 
-				self.inboundTrack.send()
-				self.outboundTrack.send()
+					self.inboundTrack.send()
+					self.outboundTrack.send()
 						
 			else:
 				print("Looks like we haven't got any frames to read.")
