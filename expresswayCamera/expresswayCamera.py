@@ -289,14 +289,14 @@ class expresswayCamera:
 						# Start frame processing
 							try:
 							# INBOUND TRACKER
-								self.inboundTrack.track(inbound, timeBuffer[i])
+								self.inboundTrack.track(inbound) #, timeBuffer[i]) 
 							except Exception as e:
 								traceback.print_exc()
 								print("Tracking of inbound lane failed. Continuing.")
 
 							try:
 							# OUTBOUND TRACKER
-								self.outboundTrack.track(outbound, timeBuffer[i])
+								self.outboundTrack.track(outbound) #, timeBuffer[i]) 
 							except Exception as e:
 								traceback.print_exc()
 								print("Tracking of outbound lane failed. Continuing.")
@@ -346,7 +346,11 @@ class expresswayCamera:
 								except Exception as e:
 									traceback.print_exc()
 									print("Counting of outbound lane failed. Continuing.")
-					
+						
+						# Start send threads to web server
+						self.inboundCount.send()
+						self.outboundCount.send()
+
 						if count > self.cfg.SV_INIT_LOOPS:
 							# Start sleep routine to flag next runtime
 							self.countReady = False	# set tracker ready status to false

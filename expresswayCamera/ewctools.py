@@ -251,14 +251,42 @@ class requester:
 	def sendSpeed(self, speed, sendtime, speedLane, target):
 		"""Posts information to web-server at specified URL."""
 		# Perform HTTP request
-		print(str(speed) + "  " + str(speedLane))
+		# print(str(speed) + "  " + str(speedLane))
 		r = requests.get(self.urlPost1, params = {'sp':speed, 't':sendtime, 'l':speedLane, 'dir':target})
+		if target == "top":
+			field = "field1"
+		else:
+			field = "field2"
+
+		r = requests.get("https://api.thingspeak.com/update", params = {'api_key':"VNK5CALTO00OMP0I", field:speed})
+		
 		return
 
 	def startSendSpeed(self, speed, sendtime, speedLane, target):
 		"""Starts thread for data poster."""
 		# Start thread for Poster
 		Thread(target = self.sendSpeed, args = (speed, sendtime, speedLane, self.target)).start()
+
+		return self
+
+	def sendCount(self, count, sendtime, target):
+		"""Posts information to web-server at specified URL."""
+		# Perform HTTP request
+		# print(str(speed) + "  " + str(speedLane))
+		r = requests.get("http://regandwhite.com/traffic/data/entry_count.php", params = {'cpm':count, 't':sendtime, 'dir':target})
+		if target == "top":
+			field = "field3"
+		else:
+			field = "field4"
+
+		r = requests.get("https://api.thingspeak.com/update", params = {'api_key':"VNK5CALTO00OMP0I", field:count})
+		
+		return
+
+	def startSendCount(self, count, sendtime, target):
+		"""Starts thread for data poster."""
+		# Start thread for Poster
+		Thread(target = self.sendCount, args = (count, sendtime, self.target)).start()
 
 		return self
 
