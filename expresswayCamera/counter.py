@@ -2,6 +2,8 @@ import time
 import cv2
 import numpy as np
 from ewctools import timer
+import time
+from ewctools import requester
 
 MAX_INT = 255
 
@@ -33,6 +35,8 @@ class counter:
 		self.LR1_BASE	= LR
 		self.LR1_UPDATE = False
 		self.FILTER_SPEED = 30
+
+		self.requester = requester('http://regandwhite.com/traffic/data/entry.php', loc)
 
 		# Define where we want the slices to be
 
@@ -144,24 +148,29 @@ class counter:
 		self.histLeft	= statusLeft[:]
 		self.histRight	= statusRight[:]
 		
+		if self.cfg.SV_DEMO:
+			keypoints = []
+			# Analyse output flags to see if things are working correctly.
+			for i in range(0, self.left):
+				for j in range(0, self.LANES):
+					if self.sensor_l[i].flag[j]:
+						keypoints.append(cv2.KeyPoint(self.sensor_l[i].OFFSET, (self.height / 8) + j * self.height / 4, 5))
 
-		keypoints = []
-		# Analyse output flags to see if things are working correctly.
-		for i in range(0, self.left):
-			for j in range(0, self.LANES):
-				if self.sensor_l[i].flag[j]:
-					keypoints.append(cv2.KeyPoint(self.sensor_l[i].OFFSET, (self.height / 8) + j * self.height / 4, 5))
+			for i in range(0, self.right):
+				for j in range(0, self.LANES):
+					if self.sensor_r[i].flag[j]:
+						keypoints.append(cv2.KeyPoint(self.sensor_r[i].OFFSET, (self.height / 8) + j * self.height / 4, 5))
 
-		for i in range(0, self.right):
-			for j in range(0, self.LANES):
-				if self.sensor_r[i].flag[j]:
-					keypoints.append(cv2.KeyPoint(self.sensor_r[i].OFFSET, (self.height / 8) + j * self.height / 4, 5))
+			blankFrame = frame.copy()	# Make a copy of the frame so that we don't break it
+			# Draw keypoints and number of features that we're tracking
+			blankOut = cv2.drawKeypoints(blankFrame, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+			cv2.imshow('Ping' + self.loc,blankOut)
 
-		blankFrame = frame.copy()	# Make a copy of the frame so that we don't break it
-		# Draw keypoints and number of features that we're tracking
-		blankOut = cv2.drawKeypoints(blankFrame, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-		cv2.imshow('Ping' + self.loc,blankOut)
-
+	def send(self):
+		"""Send results to the server!"""
+		cpm = (sum(self.carCounter) / 2) * (self.cfg._FG_FRAMERATE * 60 / self.cfg.CN_BUFFER_SIZE)
+		self.requester.startSendCount(cpm, time.time(), self.loc)
+		self.carCounter = [0,0]	# reset!
 
 ###### ------- sensor ------- ######
 # Class used by counter.  Monitors a vertical slice covering all lanes of the road, and throws flags

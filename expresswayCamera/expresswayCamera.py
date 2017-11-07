@@ -347,7 +347,10 @@ class expresswayCamera:
 								except Exception as e:
 									traceback.print_exc()
 									print("Counting of outbound lane failed. Continuing.")
-					
+						
+						self.inboundCount.send()
+						self.outboundCount.send()
+
 						if count > self.cfg.SV_INIT_LOOPS:
 							# Start sleep routine to flag next runtime
 							self.countReady = False	# set tracker ready status to false
