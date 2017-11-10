@@ -3,6 +3,8 @@ _Monitoring traffic conditions on the Riverside Expressway._
 
 Visit the website at http://traffic.regandwhite.com.
 
+See it running and how it works at https://www.youtube.com/playlist?list=PLSMRUyP8yFDCrO-2aIZO0zQ6YnVcLXMrY.
+
 ## What is this?
 The Expressway Camera is a computer vision project by Regan White. The project was completed in 2017 for QUT's BEB801/BEB802 Assessment - under the supervision of Professor Peter Corke - with the intention of monitoring the traffic conditions of the Riverside Expressway. The system would run on a Raspberry Pi v3, operated from the 11th floor of QUT's S Block (overlooking the Riverside Expressway). Software to analyse traffic conditions was written in Python 2.7.9 with OpenCV 3.3.0, and would allow for the measuring of traffic speed on a lane-by-lane basis, traffic flow data (the number of vehicles travelling on the road), and other traffic information. This information is processed by the Raspberry Pi, before it is stored on both a web-server and MATLAB ThingSpeak.
 
