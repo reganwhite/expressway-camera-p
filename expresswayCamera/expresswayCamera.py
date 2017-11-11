@@ -204,6 +204,10 @@ class expresswayCamera:
 		self.timer_track = timer(USE = self.cfg.SV_USE_DEBUG, NAME = "TPS", DISP_TIME = False)
 		self.timer_read	 = timer(USE = self.cfg.SV_USE_DEBUG, NAME = "RPS", DISP_TIME = False, DISP_PERC = True)
 
+		# ready timers
+		self.trackReady	= True
+		self.countReady	= True
+
 	def loop(self):
 		"""Main loop of expresswayCam class"""
 		# While there are still frames to be read
@@ -351,10 +355,9 @@ class expresswayCamera:
 						self.inboundCount.send()
 						self.outboundCount.send()
 
-						if count > self.cfg.SV_INIT_LOOPS:
-							# Start sleep routine to flag next runtime
-							self.countReady = False	# set tracker ready status to false
-							Thread(target = self.countResidentSleeper, args = ()).start()	# start thread
+						# Start sleep routine to flag next runtime
+						self.countReady = False	# set tracker ready status to false
+						Thread(target = self.countResidentSleeper, args = ()).start()	# start thread
 					else:
 						print("Something went wrong with the building the frame buffer for the counting module.")
 						print("Looks like we haven't got any frames to read.")
