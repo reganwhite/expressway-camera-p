@@ -145,46 +145,20 @@ class expresswayCamera:
 		# Initalize adjuster
 		self.adj = adjuster(self.cfg)
 		
-		if self.cfg.SV_LIVE == False:
-			print("Getting host name...")
-			name = socket.gethostname()
-
-			# Figure out the location of the video file
-			if name == "Regan-PC":
-				CAP_VIDEOFILE = "E:/ewc/ewcVid3.mp4"
-			elif name == "Regan-Surface":
-				CAP_VIDEOFILE = "C:/testVideoH.mp4"
-			elif name == "RWHIT-PI801":
-				CAP_VIDEOFILE = "testVideoH.mp4"
-			else:
-				quit("Don't know what device this is running on. Closing.")
-
-			# Initiate our Frame Capture
-			try:
-				print("Starting video capture from file...")
-				self.frameCapture = cv2.VideoCapture(CAP_VIDEOFILE)
-			except Exception as e:
-				traceback.print_exc()
-				quit("Video capture failed. Closing.")
-
-			# Get frames for initialising background models
-			success, frame = self.frameCapture.read()
-			inbound, outbound = self.adj.adjust(frame)
-		else:
-			try:
-				print("Initializing PiCamera capture.")
-				self.grabber = frameGrabber(sensor_mode = self.cfg._FG_CAMERA_MODE, resolution = self.cfg._FG_RESOLUTION,
-								framerate = self.cfg._FG_FRAMERATE, bufferSize = self.cfg.TR_BUFFER_SIZE)	# initialize the frame grabber object
-			except Exception as e:
-				traceback.print_exc()
-				quit("PiCamera initializing failed.")
+		try:
+			print("Initializing PiCamera capture.")
+			self.grabber = frameGrabber(sensor_mode = self.cfg._FG_CAMERA_MODE, resolution = self.cfg._FG_RESOLUTION,
+							framerate = self.cfg._FG_FRAMERATE, bufferSize = self.cfg.TR_BUFFER_SIZE)	# initialize the frame grabber object
+		except Exception as e:
+			traceback.print_exc()
+			quit("PiCamera initializing failed.")
 			
-			try:
-				frame = self.grabber.getSingle()	# get a single frame from the frame grabber for initialization
-				inbound, outbound = self.adj.adjust(frame, resize = False, fromFile = False, crop = False)	# separate our frame into inbound and outbound
-			except Exception as e:
-				traceback.print_exc()
-				quit("Failed to separate input frame into inbound/outbound.")
+		try:
+			frame = self.grabber.getSingle()	# get a single frame from the frame grabber for initialization
+			inbound, outbound = self.adj.adjust(frame, resize = False, fromFile = False, crop = False)	# separate our frame into inbound and outbound
+		except Exception as e:
+			traceback.print_exc()
+			quit("Failed to separate input frame into inbound/outbound.")
 
 		if self.cfg.SV_TRACK:
 		# Initialize the trackers objects
@@ -202,75 +176,18 @@ class expresswayCamera:
 		self.timer_track = timer(USE = self.cfg.SV_USE_DEBUG, NAME = "TPS", DISP_TIME = False)
 		self.timer_read	 = timer(USE = self.cfg.SV_USE_DEBUG, NAME = "RPS", DISP_TIME = False, DISP_PERC = True)
 
-		self.countReady = True
-		self.trackReady = True
-
-	def loop(self):
-		"""Main loop of expresswayCam class"""
-		# While there are still frames to be read
-		count = 0
-		while self.frameCapture.isOpened():
-			count = count + 1
-
-			self.timer_root.tik()
-			self.timer_read.tik()
-
-			# Read frame from file
-			success, frame = self.frameCapture.read()
-
-			self.timer_read.tok()
-
-			if success:
-				inbound, outbound = self.adj.adjust(frame)
-				
-				if self.cfg.SV_TRACK:
-					self.timer_track.tik()
-
-					self.inboundTrack.track(inbound)
-					self.outboundTrack.track(outbound)
-
-					self.timer_track.tok()
-
-				if self.cfg.SV_COUNT:
-					self.timer_count.tik()
-
-					tc = self.inboundCount.run(inbound)
-					bc = self.outboundCount.run(outbound)
-
-					if count % 100 == 0 and count > 100:
-						print("----------")
-						print(tc)
-						print(bc)
-						print("----------")
-
-					self.timer_count.tok()
-			else:
-				self.inboundTrack.close()
-				self.outboundTrack.close()
-				print("Looks like we've run out of frames to read.")
-				print("This is either because of an error, or because we've finished reading the file.")
-				print("Total frame count: {0:}".format(count))
-				quit()
-
-			# Wait for key input and exit on Q
-			key = cv2.waitKey(1) & 0xff
-			if key == ord('q'):
-				break
-			
-			self.timer_root.tok()
-
-		# Release the frame capture and exit the function
-		self.frameCapture.release()
+		# ready timers
+		self.trackReady	= True
+		self.countReady	= True
 
 	def loopLive(self):
 		"""Main loop of expresswayCam class"""
 		count = 0
-		print("Please, no touchy!.")
-	
+
 		while 1:
 			count = count + 1 # Keep track of number of iterations
 			
-			if self.trackReady and self.cfg.SV_TRACK:				
+			if self.trackReady and self.cfg.SV_TRACK:
 			# If tracking is enabled
 				# Get buffer of frames
 				success, timeBuffer, frameBuffer = self.grabber.getBuffer(self.cfg.TR_BUFFER_SIZE)
@@ -289,17 +206,16 @@ class expresswayCamera:
 							traceback.print_exc()
 						else:
 						# Start frame processing
-							#cv2.imshow("Inbound",outbound)
 							try:
 							# INBOUND TRACKER
-								self.inboundTrack.track(inbound) #, timeBuffer[i])
+								self.inboundTrack.track(inbound) #, timeBuffer[i]) 
 							except Exception as e:
 								traceback.print_exc()
 								print("Tracking of inbound lane failed. Continuing.")
 
 							try:
 							# OUTBOUND TRACKER
-								self.outboundTrack.track(outbound) #, timeBuffer[i])
+								self.outboundTrack.track(outbound) #, timeBuffer[i]) 
 							except Exception as e:
 								traceback.print_exc()
 								print("Tracking of outbound lane failed. Continuing.")
@@ -323,7 +239,7 @@ class expresswayCamera:
 			if self.countReady and self.cfg.SV_COUNT:
 			# If counting is enabled
 				currentTime = datetime.datetime.now()
-				if True: #datetime.time(hour = 7) <= currentTime.time() < datetime.time(hour = 19):
+				if datetime.time(hour = 5) <= currentTime.time() < datetime.time(hour = 19):
 					success, timeBuffer, frameBuffer = self.grabber.getBuffer(self.cfg.CN_BUFFER_SIZE)
 
 					if success:
@@ -335,7 +251,6 @@ class expresswayCamera:
 							except Exception as e:
 								traceback.print_exc()
 							else:
-								#cv2.imshow("Inbound",outbound)
 								# Start frame processing
 								try:
 								# INBOUND COUNTER
@@ -355,7 +270,6 @@ class expresswayCamera:
 						self.inboundCount.send()
 						self.outboundCount.send()
 
-						#if count > self.cfg.SV_INIT_LOOPS:
 						# Start sleep routine to flag next runtime
 						self.countReady = False	# set tracker ready status to false
 						Thread(target = self.countResidentSleeper, args = ()).start()	# start thread
