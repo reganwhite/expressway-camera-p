@@ -115,7 +115,7 @@ class tracker:
 		else:
 			multi = "0|0|0|0"
 
-		self.requester.startSendSpeed(self.computeSingle.retSpeed(), time.time(), multi, self.loc)
+		self.requester.startSendSpeed(self.computeSingle.retSpeed(), time.time() + 36000, multi, self.loc)
 
 	####### ------- track ------- #######
 	# Takes a frame input and finds information about it.  The Frame is

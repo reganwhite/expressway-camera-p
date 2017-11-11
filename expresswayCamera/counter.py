@@ -169,7 +169,7 @@ class counter:
 	def send(self):
 		"""Send results to the server!"""
 		cpm = (sum(self.carCounter) / 2) * (self.cfg._FG_FRAMERATE * 60 / self.cfg.CN_BUFFER_SIZE)
-		self.requester.startSendCount(cpm, time.time(), self.loc)
+		self.requester.startSendCount(cpm, time.time() + 36000, self.loc)
 		self.carCounter = [0,0]	# reset!
 
 
