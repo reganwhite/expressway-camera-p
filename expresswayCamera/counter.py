@@ -149,6 +149,7 @@ class counter:
 		self.histRight	= statusRight[:]
 		
 		if self.cfg.SV_DEMO:
+			print("demo")
 			keypoints = []
 			# Analyse output flags to see if things are working correctly.
 			for i in range(0, self.left):
@@ -165,6 +166,8 @@ class counter:
 			# Draw keypoints and number of features that we're tracking
 			blankOut = cv2.drawKeypoints(blankFrame, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 			cv2.imshow('Ping' + self.loc,blankOut)
+			time.sleep(0.01)
+			key = cv2.waitKey(1) & 0xff
 
 	def send(self):
 		"""Send results to the server!"""
@@ -260,7 +263,7 @@ class sensor:
 # from affecting the vehicle count.
 class bounce:
 	"""Debounces flags.  Prevents flags appearing and disappearing, and triggering the counter."""
-	def __init__(self, THRESHOLD = 3):
+	def __init__(self, THRESHOLD = 4):
 		"""Initialise variables."""
 		# Initialise variables
 		self.curr = False	# current sensor state

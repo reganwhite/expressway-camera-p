@@ -124,7 +124,7 @@ class adjuster:
 		#	2. Resize
 		#	3. RGB -> Greyscale
 		#	4. Blur
-		intCrop = int(220 / float(480/self.cfg._FG_HEIGHT))
+		intCrop = int(180 / float(480/self.cfg._FG_HEIGHT))
 
 		if crop:
 			frame = frame[self.cfg._Y1:self.cfg._Y2, self.cfg._X1:self.cfg._X2]
@@ -144,7 +144,7 @@ class adjuster:
 			# Split the road into top/bottom
 			sizeX, sizeY = frame.shape[:2]
 			frameTop = frame[0:intCrop, 0:sizeX]
-			frameBot = frame[intCrop + 1:sizeY, 0:sizeX]
+			frameBot = frame[intCrop + 1 + 20:sizeY, 0:sizeX]
 
 		return frameTop, frameBot
 
@@ -251,15 +251,14 @@ class requester:
 	def sendSpeed(self, speed, sendtime, speedLane, target):
 		"""Posts information to web-server at specified URL."""
 		# Perform HTTP request
-		# print(str(speed) + "  " + str(speedLane))
 		r = requests.get(self.urlPost1, params = {'sp':speed, 't':sendtime, 'l':speedLane, 'dir':target})
-		if target == "top":
+		if target == "Top":
 			field = "field1"
 		else:
 			field = "field2"
 
 		r = requests.get("https://api.thingspeak.com/update", params = {'api_key':"VNK5CALTO00OMP0I", field:speed})
-		
+
 		return
 
 	def startSendSpeed(self, speed, sendtime, speedLane, target):
@@ -272,9 +271,8 @@ class requester:
 	def sendCount(self, count, sendtime, target):
 		"""Posts information to web-server at specified URL."""
 		# Perform HTTP request
-		# print(str(speed) + "  " + str(speedLane))
 		r = requests.get("http://regandwhite.com/traffic/data/entry_count.php", params = {'cpm':count, 't':sendtime, 'dir':target})
-		if target == "top":
+		if target == "Top":
 			field = "field3"
 		else:
 			field = "field4"

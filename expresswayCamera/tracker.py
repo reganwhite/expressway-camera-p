@@ -425,9 +425,9 @@ class trackerCompute:
 				# calculate the distance between the two sets of coordinates for the given index
 				dist = math.sqrt(math.pow(yDiff, 2)	+ math.pow(xDiff, 2))
 			
-				if np.abs(yDiff) <= 10:
+				if np.abs(yDiff) <= 5:
 					# if the distance between the two points is reasonable, append it
-					if dist < (40 * 2):	# and dist < (20 * 2)  ---- CAUSES ISSUES IN LIVE OPERATION ---- dist < (self.previousAverageFrame) * 1.5 and 
+					if dist < (30):	# and dist < (20 * 2)  ---- CAUSES ISSUES IN LIVE OPERATION ---- dist < (self.previousAverageFrame) * 1.5 and
 						currentDistances.append(dist)
 						goodMatches.append(matchedPoints[i])
 

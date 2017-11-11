@@ -29,8 +29,8 @@ class ewc:
 		###### ------- expresswayCamera settings ------- ######
 	
 		cfg.SV_USE_DEBUG			= True		# Are we displaying debug information?
-		cfg.SV_DEMO					= True		# Are we running in demo mode (with imshows)?
-		cfg.SV_TRACK				= False		# Is the tracking module enabled?
+		cfg.SV_DEMO					= False		# Are we running in demo mode (with imshows)?
+		cfg.SV_TRACK				= True		# Is the tracking module enabled?
 		cfg.SV_COUNT				= True		# Is the counting module enabled?
 		cfg.SV_LIVE					= True		# Are we running live or from video?
 		cfg.SV_INIT_LOOPS			= 20		# How many loops are we allowing the modules to prep for?
@@ -50,7 +50,7 @@ class ewc:
 		cfg.COUNT_RES				= 4  		# Counter resolution
 		cfg.MAX_INT					= 255
 		cfg.CN_BUFFER_SIZE			= 300		# number of frames
-		cfg.CN_SLEEP_DURATION		= 240		# seconds
+		cfg.CN_SLEEP_DURATION		= 15		# seconds
 
 		#------------------------------------------------------------------------------------
 		###### ------- tracker settings ------- ######
@@ -60,8 +60,8 @@ class ewc:
 		cfg.SV_RUN_LIVE				= False
 		cfg.SV_SEND_DATA			= True
 		cfg.TR_BUFFER_SIZE			= 6			# number of frames
-		cfg.TR_SLEEP_DURATION		= 15		# seconds
-		cfg.SV_SLEEP_DURATION		= 0.1		# seconds
+		cfg.TR_SLEEP_DURATION		= 1			# seconds
+		cfg.SV_SLEEP_DURATION		= 5		# seconds
 		cfg.SV_MULTILANE			= True		# do multilane calculations?
 
 		####### ------- COMPONENT SETTINGS
@@ -71,7 +71,7 @@ class ewc:
 
 		# Start Delay
 		cfg.SV_START_DELAY			= 100		# number of frames the sytem will process before commencing analysis
-		cfg.SV_SEND_DELAY			= 1000		# number of frames the system will process before sending to server
+		cfg.SV_SEND_DELAY			= 200		# number of frames the system will process before sending to server
 
 		# FAST (Fast Feature Detector)
 		cfg.FFD_THRESHOLD			= 84
@@ -265,11 +265,12 @@ class expresswayCamera:
 	def loopLive(self):
 		"""Main loop of expresswayCam class"""
 		count = 0
-
+		print("Please, no touchy!.")
+	
 		while 1:
 			count = count + 1 # Keep track of number of iterations
 			
-			if self.trackReady and self.cfg.SV_TRACK:
+			if self.trackReady and self.cfg.SV_TRACK:				
 			# If tracking is enabled
 				# Get buffer of frames
 				success, timeBuffer, frameBuffer = self.grabber.getBuffer(self.cfg.TR_BUFFER_SIZE)
@@ -288,16 +289,17 @@ class expresswayCamera:
 							traceback.print_exc()
 						else:
 						# Start frame processing
+							#cv2.imshow("Inbound",outbound)
 							try:
 							# INBOUND TRACKER
-								self.inboundTrack.track(inbound) #, timeBuffer[i]) 
+								self.inboundTrack.track(inbound) #, timeBuffer[i])
 							except Exception as e:
 								traceback.print_exc()
 								print("Tracking of inbound lane failed. Continuing.")
 
 							try:
 							# OUTBOUND TRACKER
-								self.outboundTrack.track(outbound) #, timeBuffer[i]) 
+								self.outboundTrack.track(outbound) #, timeBuffer[i])
 							except Exception as e:
 								traceback.print_exc()
 								print("Tracking of outbound lane failed. Continuing.")
@@ -321,7 +323,7 @@ class expresswayCamera:
 			if self.countReady and self.cfg.SV_COUNT:
 			# If counting is enabled
 				currentTime = datetime.datetime.now()
-				if datetime.time(hour = 5) <= currentTime.time() < datetime.time(hour = 19):
+				if True: #datetime.time(hour = 7) <= currentTime.time() < datetime.time(hour = 19):
 					success, timeBuffer, frameBuffer = self.grabber.getBuffer(self.cfg.CN_BUFFER_SIZE)
 
 					if success:
@@ -333,6 +335,7 @@ class expresswayCamera:
 							except Exception as e:
 								traceback.print_exc()
 							else:
+								#cv2.imshow("Inbound",outbound)
 								# Start frame processing
 								try:
 								# INBOUND COUNTER
@@ -348,13 +351,14 @@ class expresswayCamera:
 									traceback.print_exc()
 									print("Counting of outbound lane failed. Continuing.")
 						
+						# Start send threads to web server
 						self.inboundCount.send()
 						self.outboundCount.send()
 
-						if count > self.cfg.SV_INIT_LOOPS:
-							# Start sleep routine to flag next runtime
-							self.countReady = False	# set tracker ready status to false
-							Thread(target = self.countResidentSleeper, args = ()).start()	# start thread
+						#if count > self.cfg.SV_INIT_LOOPS:
+						# Start sleep routine to flag next runtime
+						self.countReady = False	# set tracker ready status to false
+						Thread(target = self.countResidentSleeper, args = ()).start()	# start thread
 					else:
 						print("Something went wrong with the building the frame buffer for the counting module.")
 						print("Looks like we haven't got any frames to read.")
@@ -410,7 +414,7 @@ class frameGrabber:
 		#self.cam.resolution = resolution # Resolution for the Pi's GPU needs to downsample frame to
 		#self.cam.framerate = framerate	# Target framerate for the Raspberry Pi to aim for.
 		
-		self.frameCapture = cv2.VideoCapture("E:/ewc/ewcVid3.mp4")
+		self.frameCapture = cv2.VideoCapture("E:/ewc/ewcVid6.mp4")
 
 		self.count = 0 # Initialize counter
 
@@ -439,10 +443,10 @@ class frameGrabber:
 		self.frameBuffer = []
 		self.timeBuffer = []
 		
-		for i in range(0, 100):
-			success, frame = self.frameCapture.read()
-			if not success:
-				quit("We appear to be out of frames.")
+		#for i in range(0, 100):
+		#	success, frame = self.frameCapture.read()
+		#	if not success:
+		#		quit("We appear to be out of frames.")
 
 		try:
 		# Build the buffer
