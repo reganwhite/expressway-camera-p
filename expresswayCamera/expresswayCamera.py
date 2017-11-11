@@ -147,46 +147,20 @@ class expresswayCamera:
 		# Initalize adjuster
 		self.adj = adjuster(self.cfg)
 		
-		if self.cfg.SV_LIVE == False:
-			print("Getting host name...")
-			name = socket.gethostname()
-
-			# Figure out the location of the video file
-			if name == "Regan-PC":
-				CAP_VIDEOFILE = "E:/testVideoH.mp4"
-			elif name == "Regan-Surface":
-				CAP_VIDEOFILE = "C:/testVideoH.mp4"
-			elif name == "RWHIT-PI801":
-				CAP_VIDEOFILE = "testVideoH.mp4"
-			else:
-				quit("Don't know what device this is running on. Closing.")
-
-			# Initiate our Frame Capture
-			try:
-				print("Starting video capture from file...")
-				self.frameCapture = cv2.VideoCapture(CAP_VIDEOFILE)
-			except Exception as e:
-				traceback.print_exc()
-				quit("Video capture failed. Closing.")
-
-			# Get frames for initialising background models
-			success, frame = self.frameCapture.read()
-			inbound, outbound = self.adj.adjust(frame)
-		else:
-			try:
-				print("Initializing PiCamera capture.")
-				self.grabber = frameGrabber(sensor_mode = self.cfg._FG_CAMERA_MODE, resolution = self.cfg._FG_RESOLUTION,
-								framerate = self.cfg._FG_FRAMERATE, bufferSize = self.cfg.TR_BUFFER_SIZE)	# initialize the frame grabber object
-			except Exception as e:
-				traceback.print_exc()
-				quit("PiCamera initializing failed.")
+		try:
+			print("Initializing PiCamera capture.")
+			self.grabber = frameGrabber(sensor_mode = self.cfg._FG_CAMERA_MODE, resolution = self.cfg._FG_RESOLUTION,
+							framerate = self.cfg._FG_FRAMERATE, bufferSize = self.cfg.TR_BUFFER_SIZE)	# initialize the frame grabber object
+		except Exception as e:
+			traceback.print_exc()
+			quit("PiCamera initializing failed.")
 			
-			try:
-				frame = self.grabber.getSingle()	# get a single frame from the frame grabber for initialization
-				inbound, outbound = self.adj.adjust(frame, resize = False, fromFile = False, crop = False)	# separate our frame into inbound and outbound
-			except Exception as e:
-				traceback.print_exc()
-				quit("Failed to separate input frame into inbound/outbound.")
+		try:
+			frame = self.grabber.getSingle()	# get a single frame from the frame grabber for initialization
+			inbound, outbound = self.adj.adjust(frame, resize = False, fromFile = False, crop = False)	# separate our frame into inbound and outbound
+		except Exception as e:
+			traceback.print_exc()
+			quit("Failed to separate input frame into inbound/outbound.")
 
 		if self.cfg.SV_TRACK:
 		# Initialize the trackers objects
@@ -207,63 +181,6 @@ class expresswayCamera:
 		# ready timers
 		self.trackReady	= True
 		self.countReady	= True
-
-	def loop(self):
-		"""Main loop of expresswayCam class"""
-		# While there are still frames to be read
-		count = 0
-		while self.frameCapture.isOpened():
-			count = count + 1
-
-			self.timer_root.tik()
-			self.timer_read.tik()
-
-			# Read frame from file
-			success, frame = self.frameCapture.read()
-
-			self.timer_read.tok()
-
-			if success:
-				inbound, outbound = self.adj.adjust(frame)
-				
-				if self.cfg.SV_TRACK:
-					self.timer_track.tik()
-
-					self.inboundTrack.track(inbound)
-					self.outboundTrack.track(outbound)
-
-					self.timer_track.tok()
-
-				if self.cfg.SV_COUNT:
-					self.timer_count.tik()
-
-					tc = self.inboundCount.run(inbound)
-					bc = self.outboundCount.run(outbound)
-
-					if count % 100 == 0 and count > 100:
-						print("----------")
-						print(tc)
-						print(bc)
-						print("----------")
-
-					self.timer_count.tok()
-			else:
-				self.inboundTrack.close()
-				self.outboundTrack.close()
-				print("Looks like we've run out of frames to read.")
-				print("This is either because of an error, or because we've finished reading the file.")
-				print("Total frame count: {0:}".format(count))
-				quit()
-
-			# Wait for key input and exit on Q
-			key = cv2.waitKey(1) & 0xff
-			if key == ord('q'):
-				break
-			
-			self.timer_root.tok()
-
-		# Release the frame capture and exit the function
-		self.frameCapture.release()
 
 	def loopLive(self):
 		"""Main loop of expresswayCam class"""
@@ -492,12 +409,8 @@ if __name__ == '__main__':
 	# Initialize the tracker object
 	main = expresswayCamera()
 
-	if cfg.SV_LIVE:
-		print("Running in Live mode.")
-		main.loopLive()
-	else:
-		print("Running in Test mode.")
-		main.loop()
+	print("Running in Live mode.")
+	main.loopLive()
 
 	# Make sure everything is cleaned up
 	cv2.destroyAllWindows()
