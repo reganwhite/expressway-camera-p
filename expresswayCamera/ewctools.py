@@ -251,9 +251,8 @@ class requester:
 	def sendSpeed(self, speed, sendtime, speedLane, target):
 		"""Posts information to web-server at specified URL."""
 		# Perform HTTP request
-		# print(str(speed) + "  " + str(speedLane))
 		r = requests.get(self.urlPost1, params = {'sp':speed, 't':sendtime, 'l':speedLane, 'dir':target})
-		if target == "top":
+		if target == "Top" or target == "top":
 			field = "field1"
 		else:
 			field = "field2"
@@ -274,7 +273,7 @@ class requester:
 		# Perform HTTP request
 		# print(str(speed) + "  " + str(speedLane))
 		r = requests.get("http://regandwhite.com/traffic/data/entry_count.php", params = {'cpm':count, 't':sendtime, 'dir':target})
-		if target == "top":
+		if target == "Top" or target == "top":
 			field = "field3"
 		else:
 			field = "field4"
